@@ -1,0 +1,155 @@
+---
+title: "Homework 1"
+author: ""  # Your name here
+date: "`r Sys.time()`"
+output: html_document
+---
+
+<!---
+In order to check that all the necessary packages are installed, Click the File > New File > R Markdown button and keep all of the options as is. Save the document somewhere, and, while that new document is open, click the knit button. If a window with some plots shows up, everything is installed correctly. If RStudio prompts you to install any packages, you should install them.
+-->
+
+<!---
+Please save this file as Homework1_lastname_firstname.Rmd
+
+Be sure to update the author field in the block above.
+
+While you are working on your homework, you can use the green arrows to run a "chunk" of code. In order to produce the final document, use the knit button. You will turn in both the Rmd file and the knitted html file, which will appear next to wherever you saved the Rmd file if there are no errors.
+
+Beware, if you run chunks out of order or reuse variable names your code may produce different results when it is run again from top to bottom. Before you knit your document, it is a good idea to run all the chunks in order from top to bottom in a clean environment. Use the broom button in the environment pane to clear your variables and click the Session > Restart R and Run All Chunks.
+
+If you ever want to reference the documentation about a function, go to the console below and type ?function_name. Try it now with ?read_csv.
+-->
+
+```{r setup, message=FALSE}
+library(tidyverse)  # loads many useful packages
+
+set.seed(1)  # Ensures reproducable results
+
+theme_set(theme_minimal())  # My personal preference for less ugly default plots
+```
+
+# Part 1: Basic Data Manipulation
+
+```{r 1.1}
+# Import the data with read_csv()
+
+
+```
+
+```{r 1.2}
+# Create a dataframe where each row is a condition and
+# there is a reward, memorability, mean, and standard_error column
+# End the chunk with the variable name of your new dataframe to make it print
+
+
+```
+
+## Part 2: Plotting the Data
+
+```{r 2.3.a}
+# Use ggplot to create a histogram for average performance for all participants
+
+
+```
+
+```{r 2.3.b}
+# Use ggplot to create a scatterplot for performance across the conditions
+# Be sure to make the shape of the distribution visible as we did in the R tutorial
+# Hint: the interaction function can be used to combine features in a plot
+# aes(x=interaction(reward, memorability))
+
+
+```
+
+```{r 2.3.c}
+# Use ggplot to create a barplot for performance across the conditions.
+# Hint: the interaction function can be used to combine fetures in a plot
+# aes(x=interaction(reward, memorability))
+
+
+```
+
+```{r 2.3.d}
+# Create an additional representation of the data
+
+
+```
+
+## Part 3: Identifying Outliers
+ 
+```{r 3.4}
+# Create a new outlier column in your dataframe which contains TRUE or FALSE
+# Print your dataframe
+
+
+```
+
+Please write: are they any outliers, and what caused them to be an outlier?
+
+
+
+
+```{r 3.5}
+# If there are outliers, filter them out and replot the scatter and bar plots
+
+
+```
+
+If there are no outliers, describe what type of outliers you would expect to see in a larger sample.
+
+
+
+
+
+## Part 4: Simulating Data
+
+```{r 4.6}
+# Create a dataframe with a large memorability effect
+# Generate data with rnorm
+# Print your dataframe
+
+
+```
+
+```{r 4.6.a.1}
+# Plot the data with a histogram
+
+
+```
+
+```{r 4.6.a.2}
+# Plot the data with a bar plot with standard error
+# You will need to create a summarised dataframe as you did before
+
+
+```
+
+```{r 4.7}
+# Create a dataframe with no memorability effect
+# Generate data with rnorm
+# Print your dataframe
+
+
+```
+
+```{r 4.7.a.1}
+# Plot the data with a histogram
+
+
+```
+
+```{r 4.7.a.2}
+# Plot the data with a bar plot with standard error
+# You will need to create a summarised dataframe as you did before
+
+
+```
+
+```{r 4.8}
+# Save your full (not summarised) simulated dataframes
+# using write_csv
+
+
+```
+
