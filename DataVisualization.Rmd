@@ -1,0 +1,273 @@
+---
+title: 'Importing and Visualizing Data'
+author: "Kate Schertz"
+date: "3/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattentiondata/")
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_minimal())
+
+```
+
+Here is where we read in the raw data.
+```{r}
+setwd("~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattentiondata/")
+
+# In the raw data, there is one file per subject. This is making a list of all the files we need to read in
+file_list <- list.files(path = "~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattentiondata/", pattern = "\\.txt$")
+# This is saving the number of subjects we have, to use later
+n <- length(file_list)
+# This is creating an empty dataframe to put all of the data into
+dataset <- data.frame()
+
+# This is a for loop, to read in and process each file in the folder
+for (i in 1:length(file_list)){
+  # This is a temporary file for the ith file in the list
+  tempdat <- read.table(file = file_list[i])
+  # I'm only saving the columns I need since some don't apply to this analysis
+  tempdat <- tempdat[,c(1,4:7)]
+  # I know that this is the order of columns that I kept. I'm adding names to the columns for clarity
+  colnames(tempdat) <- c("Image","MemLevel","MemCue","RT","Performance")
+  # This adds a column that notes which subject the data is for
+  tempdat$Subject <- as.factor(i)
+  # This joins the current file to the earlier processed files
+  dataset <- rbind(dataset, tempdat)
+}
+# This deletes the last tempdat file after processing
+remove(tempdat)
+
+# Most of our columns should be treated as factors, not integers
+dataset$Image <- as.factor(dataset$Image)
+dataset$MemLevel <- as.factor(dataset$MemLevel)
+dataset$MemCue <- as.factor(dataset$MemCue)
+dataset$Performance <- as.factor(dataset$Performance)
+```
+
+Let's look at the first few rows of the data
+```{r}
+head(dataset)
+#Image = identifier of image for trial
+#MemLevel = how memorable the image is (1=low,2=medium,3=high,4=foil)
+#MemCue = memorability cue (1=remember, 2=forget, 3=foil)
+#RT= reaction time in MS
+#Performace = performance (1=correct, 2=incorrect, 3=timeout)
+#Subject
+```
+
+We can look at the last few rows as well.
+```{r}
+tail(dataset)
+```
+
+So that I don't have to create the dataset again when I work on this project in the future, I'm going to export it as a csv with all the subjects together.
+```{r}
+write_csv(dataset, "~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattention.csv")
+# To start from that csv:
+# dataset <- read_csv("topdownattention.csv")
+# dataset$Image <- as.factor(dataset$Image)
+# dataset$MemLevel <- as.factor(dataset$MemLevel)
+# dataset$MemCue <- as.factor(dataset$MemCue)
+# dataset$Performance <- as.factor(dataset$Performance)
+```
+
+
+Let's get a summary of our dataset to see what the variables look like.
+```{r}
+summary(dataset)
+```
+
+
+What about getting summary statistics by groups? 
+```{r}
+dataset %>% group_by(MemLevel) %>% summarise(meanRT=mean(RT), sdRT=sd(RT))
+```
+```{r}
+dataset %>% group_by(MemLevel) %>% count(Performance)
+```
+
+We can group by a different variable easily, or group by more than one variable
+```{r}
+dataset %>% group_by(MemCue) %>% count(Performance)
+#Note, R will give the same results with: dataset %>% count(MemCue, Performance) but I find that less intuitive.
+
+dataset %>% group_by(MemLevel, MemCue) %>% summarise(meanRT=mean(RT), sdRT=sd(RT))
+```
+
+Now let's plot our data using ggplot2. 
+```{r}
+ggplot(data=dataset) + aes(x=RT) + geom_histogram()
+
+```
+
+The trials only lasted for 1500ms so it looks like there are some trials where RT was collected after the trial was over. Let's filter out those trials.
+```{r}
+dataset_notovertime <- dataset %>% filter(RT <= 1500)
+ggplot(data=dataset_notovertime)+ aes(x=RT) + geom_histogram(binwidth = 50)
+
+```
+
+Why do you think there is a spike at 1500 ms?
+
+```{r}
+dataset_notovertime %>% filter(RT=="1500") %>% summary()
+```
+
+So lets create a new database where we only keep trials with a RT faster than the timeout time
+```{r}
+notimeout <- dataset_notovertime %>% filter(RT < 1500)
+ggplot(data=notimeout)+ aes(x=RT) + geom_histogram(binwidth = 50)
+```
+
+What about making a histogram of memory performance? 
+
+We first need to calculate a hit rate for each person (hit/(hit + miss)).
+
+```{r}
+bysubject <- dataset %>% group_by(Subject) %>% count(Performance)
+head(bysubject)
+
+#pivot_wider is going to take a name-value pair and spread it over multiple columns, and then we rename the columns so we don't have to remember the mapping
+wide_bysubject <- bysubject %>% pivot_wider(names_from = Performance, values_from = n, values_fill = list(n = 0)) %>% rename(Correct=`1`, Incorrect=`2`, Timeout=`3`)
+head(wide_bysubject)
+
+#Now we can calculate our hit rate (Correct/Correct + Incorrect). We will ignore Timeout for now.
+wide_bysubject <- wide_bysubject %>% mutate(HitRate = Correct/(Correct + Incorrect))
+head(wide_bysubject)
+
+```
+
+
+```{r}
+ggplot(data=wide_bysubject) + aes(x = HitRate) + geom_histogram(binwidth = .05)
+
+```
+
+We are interested though in differences between Memorability Level, Memorability Cue, and Hit Rate. So we need to save hit rates for each of those conditions. We aren't interested in images that were foils, so let's drop that condition. What are the conditions we need?
+
+Low Memorability x Remember
+
+Low Memorability x Forget
+
+Medium Memorability x Remember
+
+Medium Memorability x Forget
+
+High Memorability x Remember
+
+High Memorability x Forget
+
+```{r}
+bysubject_level_cue <- dataset %>% group_by(Subject, MemLevel, MemCue) %>% count(Performance)
+head(bysubject_level_cue)
+
+#Dropping foil images
+bysubject_level_cue <- bysubject_level_cue %>% filter(MemLevel != "4") %>% droplevels()
+
+#pivot_wider is going to take a name-value pair and spread it over multiple columns 
+wide_bysubject_level_cue <- bysubject_level_cue %>% 
+  pivot_wider(names_from = Performance, values_from = n, values_fill = list(n = 0)) %>% 
+  rename(Correct=`1`, Incorrect=`2`, Timeout=`3`)
+head(wide_bysubject_level_cue)
+
+#Since I said we didn't care about the timeout trials, we can drop that column to clean up the dataframe
+wide_bysubject_level_cue <- wide_bysubject_level_cue %>% select(-Timeout)
+
+wide_bysubject_level_cue <- wide_bysubject_level_cue %>% mutate(HitRate = Correct/(Correct + Incorrect))
+head(wide_bysubject_level_cue)
+```
+
+Now let's create a histogram that shows the different groups.
+```{r}
+ggplot(data=wide_bysubject_level_cue) + 
+  #fill sets the color inside the box, while color sets the edge of the box
+  aes(x = HitRate, fill=MemLevel, color=MemLevel) + 
+  #alpha sets the transparency; position overlays the values on top of each other 
+  geom_histogram(binwidth = .12, alpha=.7, position = "identity")
+```
+
+That's okay, but it's still a little hard to see where they all overlap. We can adjust the positions. Be sure to play around with the binwidth to see how it changes the plot.
+```{r}
+ggplot(data=wide_bysubject_level_cue) + 
+  aes(x = HitRate, fill=MemLevel, color=MemLevel) + 
+  #Dodge adjust the positions so they aren't on top of each other. A little more difficult to see the exact values the bars represent on the x-axis, but easier to see how the distributions overlap
+  geom_histogram(binwidth = .15, position = "dodge")
+```
+
+
+To create a barplot, we still need to calculate mean hit rate for each of the conditions listed above
+```{r}
+HRbyCond <- wide_bysubject_level_cue %>% group_by(MemLevel, MemCue) %>% summarise(meanHR = mean(HitRate), sdHR = sd(HitRate))
+HRbyCond
+```
+
+```{r}
+p1 <- ggplot(data=HRbyCond) + aes(x = interaction(MemCue,MemLevel), y=meanHR) + geom_bar(stat = "identity")
+p1
+
+# Let's add some labels and colors to make this more clear
+p2 <- p1 + 
+  aes(fill=MemCue) + 
+  scale_fill_discrete(name="Memorability Cue", breaks=c("1","2"), labels=c("Remember","Forget")) +
+  scale_x_discrete(breaks=c("1.1", "2.1", "1.2", "2.2", "1.3", "2.3"), labels=c("Low Memorability\nRemember", "Low Memorability\nForget", "Medium Memorability\nRemember","Medium Memorability\nForget","High Memorability\nRemember","High Memorability\nForget")) + 
+  theme(axis.text.x = element_text(angle=45, vjust=.5)) + 
+  labs(title="Hit Rate by Memorability Level and Cue", x = "Memorability Level and Memorability Cue", y ="Mean Hit Rate")
+p2
+
+#Let's add error bars indicting standard deviation.
+p3 <- p2 + geom_errorbar(aes(ymin=meanHR-sdHR, ymax=meanHR+sdHR, width=.2))
+p3
+
+```
+
+Here's an alternative way to build the graph. Let's use standard error instead of standard deviation. Remember that we saved how many subjects we had at the beginning. 
+
+```{r}
+
+dodge <- position_dodge(width = 0.9)
+
+p4 <- ggplot(data=HRbyCond) + 
+  aes(x=MemLevel, y=meanHR, fill=MemCue) + 
+  geom_bar(stat = "identity", position = dodge)
+p4
+
+p5 <- p4 + 
+  scale_fill_discrete(name="Memorability Cue", breaks=c("1","2"), labels=c("Remember","Forget")) +
+  scale_x_discrete(breaks=c("1","2","3"), labels=c("Low Memorability","Medium Memorability","High Memorability")) +
+  labs(title="Hit Rate by Memorability Level and Cue", x = "Memorability Level", y ="Mean Hit Rate")
+
+p6 <- p5 + geom_errorbar(aes(ymin=meanHR-(sdHR/sqrt(n)), ymax=meanHR+(sdHR/sqrt(n))), width=.2, position = dodge)
+p6
+```
+
+
+Other types of figures we can make include box plots and scatter plots. For those we need hit rate by subject, which we saved in the "wide_byimage_level_cue" dataframe.
+
+Boxplot
+
+```{r}
+ggplot(data=wide_bysubject_level_cue) + aes(x=MemLevel, y=HitRate, fill=MemCue) + geom_boxplot()
+
+
+```
+
+Scatterplot
+```{r}
+ggplot(data=wide_bysubject_level_cue) + aes(x=MemLevel, y=HitRate, color=MemCue) + geom_point()
+
+
+```
+
+That didn't really work well. Since catagorical data are aligned to the integers, we need to jitter them to see all the points.
+```{r}
+#Notice that the code for the last three plots has been the same, except for the geom in use
+ggplot(data=wide_bysubject_level_cue) + aes(x=MemLevel, y=HitRate, color=MemCue) + geom_jitter(width = .3)
+
+```
+
