@@ -7,10 +7,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattentiondata/")
+knitr::opts_knit$set(root.dir = "~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials/topdownattentiondata/")
 ```
 
-```{r}
+```{r message=FALSE}
 library(tidyverse)
 theme_set(theme_minimal())
 
@@ -18,10 +18,10 @@ theme_set(theme_minimal())
 
 Here is where we read in the raw data.
 ```{r}
-setwd("~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattentiondata/")
+#setwd("~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials/topdownattentiondata/")
 
 # In the raw data, there is one file per subject. This is making a list of all the files we need to read in
-file_list <- list.files(path = "~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattentiondata/", pattern = "\\.txt$")
+file_list <- list.files(path = "~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials/topdownattentiondata/", pattern = "\\.txt$")
 # This is saving the number of subjects we have, to use later
 n <- length(file_list)
 # This is creating an empty dataframe to put all of the data into
@@ -57,7 +57,7 @@ head(dataset)
 #MemLevel = how memorable the image is (1=low,2=medium,3=high,4=foil)
 #MemCue = memorability cue (1=remember, 2=forget, 3=foil)
 #RT= reaction time in MS
-#Performace = performance (1=correct, 2=incorrect, 3=timeout)
+#Performance = performance (1=correct, 2=incorrect, 3=timeout)
 #Subject
 ```
 
@@ -68,7 +68,7 @@ tail(dataset)
 
 So that I don't have to create the dataset again when I work on this project in the future, I'm going to export it as a csv with all the subjects together.
 ```{r}
-write_csv(dataset, "~/Box Sync/Documents/Classes/TA/ExpDesign/topdownattention.csv")
+write_csv(dataset, "~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials/topdownattention.csv")
 # To start from that csv:
 # dataset <- read_csv("topdownattention.csv")
 # dataset$Image <- as.factor(dataset$Image)
@@ -177,7 +177,7 @@ wide_bysubject_level_cue <- bysubject_level_cue %>%
 head(wide_bysubject_level_cue)
 
 #Since I said we didn't care about the timeout trials, we can drop that column to clean up the dataframe
-wide_bysubject_level_cue <- wide_bysubject_level_cue %>% select(-Timeout)
+wide_bysubject_level_cue <- wide_bysubject_level_cue %>% dplyr::select(-Timeout)
 
 wide_bysubject_level_cue <- wide_bysubject_level_cue %>% mutate(HitRate = Correct/(Correct + Incorrect))
 head(wide_bysubject_level_cue)
