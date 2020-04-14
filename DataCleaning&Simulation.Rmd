@@ -1,0 +1,200 @@
+---
+title: "Cleaning and Simulating Data"
+author: "Kate Schertz"
+date: "3/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials")
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_minimal())
+set.seed(42)
+```
+
+```{r}
+dataset <- read_csv("topdownattention.csv")
+dataset$Image <- as.factor(dataset$Image)
+dataset$MemLevel <- as.factor(dataset$MemLevel)
+dataset$MemCue <- as.factor(dataset$MemCue)
+dataset$Performance <- as.factor(dataset$Performance)
+n <- length(unique(dataset$Subject))
+```
+
+##Cleaning Data
+```{r}
+bysubject <- dataset %>% group_by(Subject) %>% count(Performance)
+head(bysubject)
+
+#pivot_wider is going to take a name-value pair and spread it over multiple columns, and then we rename the columns so we don't have to remember the mapping
+wide_bysubject <- bysubject %>% 
+  pivot_wider(names_from = Performance, values_from = n, values_fill = list(n = 0)) %>% 
+  rename(Correct=`1`, Incorrect=`2`, Timeout=`3`) %>% 
+  ungroup()
+head(wide_bysubject)
+
+#Now we can calculate our hit rate (Correct/Correct + Incorrect). We will ignore Timeout.
+wide_bysubject <- wide_bysubject %>% mutate(HitRate = Correct/(Correct + Incorrect))
+head(wide_bysubject)
+```
+
+Let's look at overall performance using a boxplot to see if there are any outliers
+```{r}
+ggplot(data=wide_bysubject) + 
+  aes(x="",y=HitRate) + 
+  geom_boxplot() + 
+  ylim(0,1)
+```
+
+What about identifying participants who "timed out" too much? This could indicate they are not being active participants.
+```{r}
+ggplot(data=wide_bysubject) + 
+  aes(x="",y=Timeout) + 
+  geom_boxplot(outlier.colour = "red")
+```
+
+Looks like we have a few people that were not responding properly. Let's identify and remove those subjects.
+```{r}
+summary(wide_bysubject$Timeout)
+
+#IQR is a function in dplyr which returns the Inter-quartile range
+wide_bysubject <- wide_bysubject %>% mutate(outlier = Timeout > median(Timeout) + IQR(Timeout)*1.5)
+head(wide_bysubject)
+
+wide_bysubject %>% filter(outlier == TRUE)
+```
+
+That last command only kept the outliers. We need to filter them out instead.
+```{r}
+wide_bysubject_nooutliers <- wide_bysubject %>% filter(outlier != TRUE)
+
+```
+
+##Data Simulation
+
+Let's create toy data that is the same size as this data to make visualizations of expected results under different conditions. We had 72 participants who saw 120 images each. One way to set it up is to use our old dataframe and assign new values for Performance. 
+
+First let's use fully coded data to show maximum differences between MemLevels.
+```{r}
+
+dataset_codedtoy <- dataset %>% select(-Performance) %>% mutate(Performance = NA)
+
+#This is conditionally setting Performance based on the Memorability Levels
+dataset_codedtoy <- dataset_codedtoy %>% 
+  mutate(Performance = case_when(
+    MemLevel == "1" ~ 2, # Low Memorability, All incorrect
+    MemLevel == "2" ~ 2, # Medium Memorability, All incorrect
+    MemLevel == "3" ~ 1, # High Memorability, All correct
+    MemLevel == "4" ~ 1  # Foils, All correct
+  ))
+
+```
+
+Now we need to repeat the steps we took last time to calculate hit rate for the groups, this time without creating an intermediate dataframe.
+```{r}
+wide_toycoded <- dataset_codedtoy %>% 
+  group_by(Subject, MemLevel, MemCue) %>% 
+  count(Performance) %>% 
+  pivot_wider(names_from = Performance, values_from = n, values_fill = list(n = 0)) %>% 
+  rename(Correct=`1`, Incorrect=`2`) %>% 
+  ungroup() %>% 
+  filter(MemLevel != "4") %>% 
+  mutate(HitRate = Correct/(Correct + Incorrect))
+head(wide_toycoded)
+```
+
+Let's visualize this dataset to make sure it matches what we expect.
+```{r}
+ggplot(data=wide_toycoded) +
+  aes(x = HitRate, fill=MemLevel, color=MemLevel) + 
+  geom_histogram(binwidth = .2, position = "dodge")
+```
+
+We can also summarize the dataframe to make a barplot
+```{r}
+HRbyCond <- wide_toycoded %>% group_by(MemLevel) %>% summarise(meanHR = mean(HitRate), sdHR = sd(HitRate))
+HRbyCond
+
+ggplot(data=HRbyCond) + aes(x = MemLevel, y=meanHR) + geom_bar(stat = "identity")
+```
+
+Now let's make random data.
+
+```{r}
+dataset_randomtoy <- dataset %>% select(-Performance) %>% mutate(Performance = NA)
+
+#Creating a vector of random Correct/Incorrect
+randperf <- sample(c(1,2), size=nrow(dataset_randomtoy), replace = TRUE)
+
+#Assigning Performance to equal that vector
+dataset_randomtoy$Performance <- randperf
+
+wide_randomtoy <- dataset_randomtoy %>% 
+  group_by(Subject, MemLevel, MemCue) %>% 
+  count(Performance) %>% 
+  pivot_wider(names_from = Performance, values_from = n, values_fill = list(n = 0)) %>% 
+  rename(Correct=`1`, Incorrect=`2`) %>% 
+  ungroup() %>% 
+  filter(MemLevel != "4") %>% 
+  mutate(HitRate = Correct/(Correct + Incorrect))
+head(wide_randomtoy)
+```
+
+Now what does our histogram look like if we use this data?
+```{r}
+ggplot(data=wide_randomtoy) +
+  aes(x = HitRate, fill=MemLevel, color=MemLevel) + 
+  geom_histogram(binwidth = .1, position = "dodge")
+```
+
+And looking at the barplot
+```{r}
+HRbyCond_random <- wide_randomtoy %>% group_by(MemLevel) %>% summarise(meanHR = mean(HitRate), sdHR = sd(HitRate))
+HRbyCond_random
+
+ggplot(data=HRbyCond_random) + 
+  aes(x = MemLevel, y=meanHR) + geom_bar(stat = "identity") + 
+  geom_errorbar(aes(ymin=meanHR-(sdHR/sqrt(n)), ymax=meanHR+(sdHR/sqrt(n))), width=.2)
+```
+
+Other ways to make random data:
+```{r}
+#Here we are randomizing the performance data that is already present, so it's not ~50-50 correct/incorrect. The overall mean performance here should be equal to the mean performance of the actual data
+dataset_shuffledperf <- as_tibble(transform(dataset, Performance = sample(Performance)))
+# You can see that only the Performance column has changed. We could then repeat the steps above to visualize.
+head(dataset)
+head(dataset_shuffledperf)
+```
+
+We can also sample hit rates from different distributions to create hit rates that are different for the Memorability levels but still have variance (unlike our fully coded data). Let's make this dataset from scratch instead of editing our original data frame. 
+
+We create a vector for each of our six conditions and then bind them together into a data frame/tibble.
+```{r}
+subjects <- as.factor(c(1:72))
+LowForget <- rnorm(n=72, mean=.4, sd=.05)
+LowRemember <- rnorm(n=72, mean=.4, sd=.05)
+MedForget <- rnorm(n=72, mean=.5, sd=.05)
+MedRemember <- rnorm(n=72, mean=.5, sd=.05)
+HighForget <- rnorm(n=72, mean=.7, sd=.05)
+HighRemember <- rnorm(n=72, mean=.7, sd=.05)
+
+toyranddist <- tibble(subjects, LowForget, LowRemember, MedForget, MedRemember, HighForget, HighRemember)
+head(toyranddist)
+
+#pivot_longer is the inverse transformation of pivot_wider. Every column except subjects is being placed into two new columns. The column names will be in the "condition" column, while their values will be in the "HitRate" column. Subjects will be repeated to fill the dataframe. 
+long_toyranddist <- pivot_longer(data=toyranddist,cols = -subjects ,names_to = "condition", values_to = "HitRate")
+summary(long_toyranddist)
+```
+
+Let's see what it looks like to plot these distributions.
+```{r}
+ggplot(data=long_toyranddist) +
+  aes(x = HitRate, color=condition) + 
+  geom_density(position = "identity") +
+  xlim(.2,.9)
+```
+
