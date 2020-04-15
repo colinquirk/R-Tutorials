@@ -1,0 +1,168 @@
+---
+title: "Power Calculations"
+author: "Colin Quirk"
+date: "2/12/2020"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+
+theme_set(theme_minimal())
+
+knitr::opts_chunk$set(message=FALSE)
+
+set.seed(42)  # Get consistent results
+```
+
+Let's work through an example power calculation. For simplicity, let's look at a difference in IQ across 2 groups. Imagine that all values here are from a sample. We will be calculating "achieved power" (i.e. the power given our n, means, and SDs) for a two sample, two sided t-test.
+
+```{r}
+g1_n = 10
+g1_sample_mean = 100
+g1_sample_sd = 15
+
+g2_n = 10
+g2_sample_mean = 112
+g2_sample_sd = 15
+```
+
+Luckily, R makes it very easy to calculate power.
+
+```{r}
+power.t.test(n = 10,
+             delta = g2_sample_mean - g1_sample_mean,
+             sd = 15,
+             sig.level = 0.05,
+             type = "two.sample",
+             alternative = "two.sided")
+```
+
+However, we can verify this number ourselves if we wish. Doing it by hand gives us more flexibilty e.g. if we have different group numbers we can handle it easily by modifying the calculations in the correct places. It also allows us to be sure we understand what is happening as different programs will use different assumptions and corrections.
+
+First let's calculate our observed standardized effect size.
+
+```{r}
+# In the current example you could simply input 15 as the SDs are equal
+# I've included the formula so that you can play with the values.
+df = g1_n + g2_n - 2
+weighted_g1_sd_squared = (g1_n - 1) * g1_sample_sd^2
+weighted_g2_sd_squared = (g2_n - 1) * g2_sample_sd^2
+pooled_sd = sqrt((weighted_g1_sd_squared + weighted_g2_sd_squared) / df)
+
+# Technically this is Hedges' g because of how we calculated pooled_sd
+cohens_d = (g2_sample_mean - g1_sample_mean) / pooled_sd 
+cohens_d
+```
+
+With our observed effect size, we can see how much power our above experiment had with n = 10. Remember that power is equal to the probability that we will reject the null when it is false (i.e. the probability of making a correct rejection).
+
+```{r}
+alpha = 0.05
+critical_t = qt(1 - (alpha / 2), df)  # alpha / 2 for a 2 sided test
+# This is beyond the course, but feel free to read up on the distribution of a test statistic
+# when the null is false and how that relates to the noncentrality parameter.
+# You could find this particular formula online, e.g. in GPower's docs
+ncp = cohens_d * sqrt(g1_n * g2_n / (g1_n + g2_n))
+
+power = 1 - pt(critical_t, df, ncp)
+power
+```
+
+```{r}
+x = seq(-4, 6, length.out = 1000)
+ny = dt(x, df)
+ay = dt(x, df, ncp = ncp)
+
+data = data.frame(x = x, ny = ny, ay = ay)
+
+ggplot(data, aes(x = x)) +
+  geom_path(aes(y = ny), color='blue') +
+  geom_path(aes(y = ay), color='red') +
+  geom_vline(xintercept = critical_t) +
+  stat_function(fun = dt, 
+                xlim = c(critical_t, 6),
+                geom = "area",
+                args = c(df = df, ncp=ncp),
+                alpha = 0.25) 
+```
+
+
+Our hand calculated power nearly exactly matches what is returned by R, so we are probably doing something right.
+
+With n=10 it seems like our power is not great. Let's calculate what our power would be if n = 20 (we will skip doing it by hand as all the calculations are the same).
+
+```{r}
+power.t.test(n = 20,
+             delta = g2_sample_mean - g1_sample_mean,
+             sd = 15,
+             sig.level = 0.05,
+             type = "two.sample",
+             alternative = "two.sided")
+```
+
+Looking better! But still lower than our preferred value of 0.8. We could keep guessing what values would be good enough, but the `power.t.test` function allows us to directly calculate the necessary sample size for a specific power value so let's just do that.
+
+```{r}
+power.t.test(power = 0.8,  # notice the n argument has been replaced with power
+             delta = g2_sample_mean - g1_sample_mean,
+             sd = 15,
+             sig.level = 0.05,
+             type = "two.sample",
+             alternative = "two.sided")
+```
+
+Based on this output, we need 26 people per group to reach a value for power that is >= to 0.8.
+
+One thing you might notice is that there is a fair amount of work going into these calculations and, because it is complicated, you may feel as if you want to let the calculator tell you what the right number is and leave it at that. However, it can be very easy to make mistakes with these methods if you don't understand the internals.
+
+One way to gain some confidence in your results is to perform simulations. This method scales to much more complicated designs without much more trouble (unlike using gpower or R, which may not provide a simple function for you to use). Here we perform a simulation that provides the same result as the R code we used above.
+
+To do this, we will calculate the proportion of simulated experiments that result in a correct rejection of the null hypothesis given the effect size 0.8 and n = 10. First, we will create a function that generates an "experiment" of data which we can use with `replicate`.
+
+```{r}
+get_sample_data = function(d, n) {
+  data.frame(
+    group1 = rnorm(n),
+    group2 = rnorm(n, d)
+  )
+}
+```
+
+The specific values don't matter, we just need two distributions that differ at an effect size of 0.8. The easiest way to do this is to simply pull values from N(0,1) and N(0.8,1). Note that a mean difference of 0.8 with sd=1 results in a Cohen's d of 0.8. Performing a t-test with the result of our function is easy.
+
+```{r}
+test_data = get_sample_data(0.8, 10)
+
+t.test(test_data$group1, test_data$group2)
+```
+
+Here we create a function that runs a t-test and returns `TRUE` if we reject the null (a correct rejection) and `FALSE` if we do not (a miss).
+
+```{r}
+test_sample_data = function(data){
+  t.test(data$group1, data$group2)$p.value < 0.05
+}
+
+test_sample_data(test_data)
+```
+
+As the p-value shown above is 0.87, our function correctly returns `FALSE`. Now we can use replicate to run our function 1000 times.
+
+```{r}
+simulation_results = replicate(1000, test_sample_data(get_sample_data(0.8, 10)))
+```
+
+Simulation results now holds 1000 `TRUE` and `FALSE` values. If our simulation worked, we would expect the percentage of `TRUE`s to be close to 0.39 (the output from our work above). R treats `FALSE` as a 0 and `TRUE` as a 1 during numeric calculations so we can simply take the mean of our vector to get our answer.
+
+```{r}
+mean(simulation_results)
+```
+
+Not bad! Let's try again with n=20 now. This time we expect to see 0.69.
+
+```{r}
+mean(replicate(1000, test_sample_data(get_sample_data(0.8, 20))))
+```
+
+Hopefully you can see that this method is extremely flexible and is hopefully easier to wrap your head around.
