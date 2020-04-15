@@ -258,8 +258,9 @@ head(wide_bysubject)</code></pre>
 <pre class="r"><code>summary(wide_bysubject$Timeout)</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 ##   0.000   1.000   2.000   4.431   4.000  63.000</code></pre>
-<pre class="r"><code>#IQR is a function in dplyr which returns the Inter-quartile range
-wide_bysubject &lt;- wide_bysubject %&gt;% mutate(outlier = Timeout &gt; median(Timeout) + IQR(Timeout)*1.5)
+<pre class="r"><code>#THIS SECTION WAS CHANGED FROM VERSION 1 THAT WAS POSTED.
+#IQR is a function in dplyr which returns the Inter-quartile range. quantile returns the quantiles of the data (We need the 4th item from the list that quantiles outputs because that's the 3rd Quantile)
+wide_bysubject &lt;- wide_bysubject %&gt;% mutate(outlier = Timeout &gt; quantile(wide_bysubject$Timeout)[4] + IQR(Timeout)*1.5)
 head(wide_bysubject)</code></pre>
 <pre><code>## # A tibble: 6 x 6
 ##   Subject Correct Incorrect Timeout HitRate outlier
@@ -270,21 +271,33 @@ head(wide_bysubject)</code></pre>
 ## 4       4      82        37       1   0.689 FALSE  
 ## 5       5     100        20       0   0.833 FALSE  
 ## 6       6      97        23       0   0.808 FALSE</code></pre>
-<pre class="r"><code>wide_bysubject %&gt;% filter(outlier == TRUE)</code></pre>
-<pre><code>## # A tibble: 11 x 6
-##    Subject Correct Incorrect Timeout HitRate outlier
-##      &lt;dbl&gt;   &lt;int&gt;     &lt;int&gt;   &lt;int&gt;   &lt;dbl&gt; &lt;lgl&gt;  
-##  1       7      45        68       7   0.398 TRUE   
-##  2       8      58        49      13   0.542 TRUE   
-##  3      11      59        49      12   0.546 TRUE   
-##  4      15      69        43       8   0.616 TRUE   
-##  5      16      33        24      63   0.579 TRUE   
-##  6      18      53        47      20   0.53  TRUE   
-##  7      20      31        36      53   0.463 TRUE   
-##  8      21      56        53      11   0.514 TRUE   
-##  9      23      65        44      11   0.596 TRUE   
-## 10      46      94        19       7   0.832 TRUE   
-## 11      66      59        50      11   0.541 TRUE</code></pre>
+<pre class="r"><code>#You can check this manually.
+quantile(wide_bysubject$Timeout) #Gives 5 values (0/25/50/75/100 percentiles)</code></pre>
+<pre><code>##   0%  25%  50%  75% 100% 
+##    0    1    2    4   63</code></pre>
+<pre class="r"><code>quantile(wide_bysubject$Timeout)[2]</code></pre>
+<pre><code>## 25% 
+##   1</code></pre>
+<pre class="r"><code>quantile(wide_bysubject$Timeout)[4]</code></pre>
+<pre><code>## 75% 
+##   4</code></pre>
+<pre class="r"><code>iqr &lt;- 4-1
+4 + 1.5*3</code></pre>
+<pre><code>## [1] 8.5</code></pre>
+<pre class="r"><code>wide_bysubject &lt;- wide_bysubject %&gt;% mutate(outlierTestManual = Timeout &gt; 8.5)
+
+wide_bysubject %&gt;% filter(outlier == TRUE)</code></pre>
+<pre><code>## # A tibble: 8 x 7
+##   Subject Correct Incorrect Timeout HitRate outlier outlierTestManual
+##     &lt;dbl&gt;   &lt;int&gt;     &lt;int&gt;   &lt;int&gt;   &lt;dbl&gt; &lt;lgl&gt;   &lt;lgl&gt;            
+## 1       8      58        49      13   0.542 TRUE    TRUE             
+## 2      11      59        49      12   0.546 TRUE    TRUE             
+## 3      16      33        24      63   0.579 TRUE    TRUE             
+## 4      18      53        47      20   0.53  TRUE    TRUE             
+## 5      20      31        36      53   0.463 TRUE    TRUE             
+## 6      21      56        53      11   0.514 TRUE    TRUE             
+## 7      23      65        44      11   0.596 TRUE    TRUE             
+## 8      66      59        50      11   0.541 TRUE    TRUE</code></pre>
 <p>That last command only kept the outliers. We need to filter them out instead.</p>
 <pre class="r"><code>wide_bysubject_nooutliers &lt;- wide_bysubject %&gt;% filter(outlier != TRUE)</code></pre>
 </div>
