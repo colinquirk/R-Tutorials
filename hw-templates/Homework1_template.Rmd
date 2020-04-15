@@ -106,7 +106,6 @@ If there are no outliers, describe what type of outliers you would expect to see
 
 ```{r 4.6}
 # Create a dataframe with a large memorability effect
-# Generate data with rnorm
 # Print your dataframe
 
 
