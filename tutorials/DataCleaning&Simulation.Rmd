@@ -61,9 +61,18 @@ Looks like we have a few people that were not responding properly. Let's identif
 ```{r}
 summary(wide_bysubject$Timeout)
 
-#IQR is a function in dplyr which returns the Inter-quartile range
-wide_bysubject <- wide_bysubject %>% mutate(outlier = Timeout > median(Timeout) + IQR(Timeout)*1.5)
+#THIS SECTION WAS CHANGED FROM VERSION 1 THAT WAS POSTED.
+#IQR is a function in dplyr which returns the Inter-quartile range. quantile returns the quantiles of the data (We need the 4th item from the list that quantiles outputs because that's the 3rd Quantile)
+wide_bysubject <- wide_bysubject %>% mutate(outlier = Timeout > quantile(wide_bysubject$Timeout)[4] + IQR(Timeout)*1.5)
 head(wide_bysubject)
+
+#You can check this manually.
+quantile(wide_bysubject$Timeout) #Gives 5 values (0/25/50/75/100 percentiles)
+quantile(wide_bysubject$Timeout)[2]
+quantile(wide_bysubject$Timeout)[4]
+iqr <- 4-1
+4 + 1.5*3
+wide_bysubject <- wide_bysubject %>% mutate(outlierTestManual = Timeout > 8.5)
 
 wide_bysubject %>% filter(outlier == TRUE)
 ```
