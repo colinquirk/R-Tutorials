@@ -1,0 +1,139 @@
+---
+title: "Homework 4"
+author: ""  # Your name here
+date: "`r Sys.time()`"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)  # loads many useful packages
+
+set.seed(1)  # Ensures reproducable results
+
+theme_set(theme_minimal())  # My personal preference for less ugly default plots
+```
+
+```{r import}
+# Import your cleaned data and do any necessary summarization
+
+
+```
+
+# Part 1: Simple Linear Regression
+
+```{r 1.1}
+
+
+```
+
+```{r 1.2}
+
+
+```
+
+
+
+
+
+
+```{r 1.4}
+
+```
+
+```{r 1.5}
+
+```
+
+# Part 2: Multiple Regression
+
+```{r 2.6}
+# ?scale
+
+```
+
+
+
+
+
+
+```{r 2.8.a}
+
+```
+
+```{r 2.8.b}
+
+```
+
+```{r 2.8.c}
+
+```
+
+
+
+
+
+
+```{r 2.10.a}
+
+```
+
+```{r 2.10.b}
+
+```
+
+```{r 2.10.c}
+
+```
+
+```{r 2.11.a}
+
+```
+
+```{r 2.11.b}
+
+```
+
+
+
+
+
+
+```{r 2.11.c}
+
+```
+
+```{r 2.11.d}
+
+```
+
+```{r 2.12}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r 2.15.c}
+
+```
+
+
+
+
+
+
+
+
+
+

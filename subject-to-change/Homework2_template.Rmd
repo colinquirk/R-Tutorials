@@ -1,0 +1,161 @@
+---
+title: "Homework 2"
+author: ""  # Your name here
+date: "`r Sys.time()`"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)  # loads many useful packages
+
+set.seed(1)  # Ensures reproducable results
+
+theme_set(theme_minimal())  # My personal preference for less ugly default plots
+```
+
+# Part 1: Normality and t-tests
+
+```{r 1.1}
+# Import your cleaned data
+
+
+```
+
+```{r 1.2}
+# Create an overlayed histogram for memorable and forgettable images
+# Use alpha=0.5 and position='identity' to overlay histograms
+# https://stackoverflow.com/a/6958052/10067832
+
+
+```
+
+Discuss the shape of these distributions.
+
+
+
+```{r 1.4}
+# Perform an independent samples t-test for memorable vs forgettable images from scratch
+# Then perform the same test with t.test()
+
+
+```
+
+```{r 1.5}
+# Perform a paired samples t-test for memorable vs forgettable images from scratch
+# Then perform the same test with t.test()
+
+
+```
+
+Discuss which test is best.
+
+
+
+
+
+```{r 1.6.b}
+# Get the p-value for the correct t-test using pt()
+
+
+```
+
+
+Write up the results of the t-test as would be appropriate for a scientific paper using inline r code.
+
+Example:
+
+```{r example}
+example_p_value = 0.02
+```
+
+The p-value is `r example_p_value`.
+
+
+
+
+
+## Part 2: Effect Size
+
+```{r 2.7}
+# Calculate the effect size for your test from scratch
+
+
+```
+
+Write up your results again, this time including the effect size.
+
+
+
+## Part 3: Permutation Tests
+ 
+```{r 3.9.a}
+# Create a function that will return a random permutation, to be used in a permutation test
+
+
+```
+
+```{r 3.9.b}
+# Conduct 1000 permutations
+
+
+```
+
+```{r 3.9.c}
+# Plot a histogram of your permutations with the observed difference represented by a vertical line
+
+
+```
+
+```{r 3.9.d}
+# Calculate a p-value for your permutation test
+
+
+```
+
+Write up your permutation results.
+
+
+
+
+
+## Part 4: Bootstrapping Confidence Intervals
+
+```{r 4.10}
+# Calculate the confidence interval around the mean for memorable and forgettable images
+
+
+```
+
+```{r 4.11.a}
+# Create a function that will generate a bootstraped sample
+# and return the sample mean
+# ?sample_frac
+
+get_sample = function(data) {
+  
+}
+```
+
+```{r 4.11.b}
+# Use replicate to generate 1000 sample means for memorable images
+
+
+```
+
+```{r 4.11.c}
+# Use replicate to generate 1000 sample means for forgettable images
+
+
+```
+
+```{r 4.11.d}
+# Calculate the 95% CIs for memorable and forgettable images
+
+
+```
+
+Compare your parametric CIs to your bootstrapped CIs.
+
+
+
+

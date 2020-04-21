@@ -1,0 +1,16 @@
+---
+title: "Homework 5"
+author: ""  # Your name here
+date: "`r Sys.time()`"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)  # loads many useful packages
+
+set.seed(1)  # Ensures reproducable results
+
+theme_set(theme_minimal())  # My personal preference for less ugly default plots
+```
+
+

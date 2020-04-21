@@ -1,0 +1,159 @@
+---
+title: "Homework 3"
+author: ""  # Your name here
+date: "`r Sys.time()`"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)  # loads many useful packages
+
+set.seed(1)  # Ensures reproducable results
+
+theme_set(theme_minimal())  # My personal preference for less ugly default plots
+```
+
+```{r 1.1}
+# Import your cleaned data and do any necessary summarization
+
+
+```
+
+# Part 1: P-values
+
+```{r 1.1.a}
+# Perform a t-test for no reward forgettable vs no reward memorable using t.test()
+
+
+```
+
+
+```{r 1.1.b}
+# Perform a t-test for low reward forgettable vs low reward memorable
+
+
+```
+
+```{r 1.1.c}
+# Perform a t-test for high reward forgettable vs high reward memorable
+
+
+```
+
+```{r 1.1.d}
+# Perform a t-test for no reward forgettable vs low reward forgettable
+
+
+```
+
+```{r 1.1.e}
+# Perform a t-test for low reward forgettable vs high reward forgettable
+
+
+```
+
+```{r 1.1.f}
+# Perform a t-test for no reward forgettable vs high reward forgettable
+
+
+```
+
+```{r 1.1.g}
+# Perform a t-test for no reward memorable vs low reward memorable
+
+
+```
+
+```{r 1.1.h}
+# Perform a t-test for low reward memorable vs high reward memorable
+
+
+```
+
+```{r 1.1.i}
+# Perform a t-test for no reward memorable vs high reward memorable
+
+
+```
+
+For any 3 of the above tests, discuss the null and alternative hypotheses. Then write the results as they would be presented in a research paper.
+
+
+
+
+
+
+Discuss generally the findings from the above t-tests, what you can conclude, and what if any caveats exist.
+
+
+
+
+
+
+# Part 2: Multiple Comparisons Correction
+
+```{r 2.4}
+# Create a function that takes in a vector of unordered p-values and
+# returns a bool for each p-value indicating if the null is rejected
+# Assume the original alpha = 0.05
+# Show your function works on a toy set of p-values
+# ?length
+
+bonferroni = function(p) {
+  
+}
+```
+
+```{r 2.4.a}
+# Use your bonferroni function to determine which p-values from part 1 survive correction
+
+
+```
+
+Report the new alpha value given a Bonferroni correction on the tests used above and describe which, if any, tests survive the correction.
+
+
+
+
+
+Rewrite the results for the tests taking into account the correction.
+
+
+
+
+
+```{r 2.5}
+# Create a function that takes in a vector of unordered p-values and
+# returns a bool for each p-value indicating if the null is rejected
+# Show your function works on a toy set of p-values
+# ?sort
+
+fdr_correction = function(p) {
+  
+}
+```
+
+```{r 2.5.a}
+# Use your function to correct the tests performed in part 1
+
+
+
+```
+
+Describe the new p-value threshold and which tests, if any, survive correction.
+
+
+
+
+Write up the results of the tests.
+
+
+
+
+
+```{r 2.5.c}
+# Perform an fdr correction using p.adjust()
+
+
+
+```
