@@ -1,0 +1,183 @@
+---
+title: "SamplingDistributions"
+author: "Colin Quirk"
+date: "1/21/2020"
+output: html_document
+---
+
+```{r setup, message=F}
+#install.packages("tidyverse")
+library(tidyverse)
+
+theme_set(theme_minimal())  # pretty plots
+
+set.seed(42)
+
+knitr::opts_chunk$set(message=F)  # Prevents output we don't care about
+```
+
+Let's simulate data from an imaginary RT experiment where we want to know how fast participants are able to respond to a particular stimulus. Let's imagine we have a population mean = μ = 350 ms and a population standard deviation = σ = 55. For simplification, let's imagine we recorded a single RT from 1000 participants on mTurk (no repeated measures) and let's round to the nearest millisecond.
+
+```{r create_data}
+population_mean = 350
+population_sd = 55
+
+rt_data = data.frame(trial = 1:1000, rt = round(rnorm(1000, 350, 55)))
+
+head(rt_data)
+```
+
+`rnorm` can simulate values from a specificed normal distribution, type `?rnorm` on the console for more info.
+
+We can plot our population data like this using ggplot.
+
+```{r}
+ggplot(rt_data, aes(x = rt)) +
+  geom_histogram()
+```
+
+As you can see, we have a normal distribution around our μ of 350 ms. Now, let's see what happens when we take 1000 samples of n = 15 from this population. To do this, we will create a function that gets a random sample of `n` subjects from `data` using the column `column` and returns the mean.
+
+```{r}
+n = 15
+
+get_sample_mean = function(sample_size, data, column) {
+  sample = data %>% sample_n(sample_size)
+  mean(sample[[column]])
+}
+
+get_sample_mean(n, rt_data, 'rt')
+```
+
+In order to run a function many times, we can use the `replicate` function. `replicate` takes the number of times you want to do something and the function you want to run.
+
+```{r}
+n = 15
+
+samples = replicate(1000, get_sample_mean(n, rt_data, 'rt'))
+
+sample_data = data.frame(sample = 1:1000, sample_mean = samples)
+
+head(sample_data)
+```
+
+Now we will plot the distribution of our sample means.
+
+```{r}
+ggplot(sample_data, aes(x = sample_mean)) +
+  geom_histogram() +
+  coord_cartesian(xlim=c(300, 400))
+```
+
+Let's look at some interesting features of our sampling distribution.
+
+```{r}
+mean(sample_data$sample_mean)
+sd(sample_data$sample_mean)
+```
+
+The mean of our sampling distribution is very close to our population mean of 350, however there is some variance. The standard deviation of our sampling distribution is controlled by the n of our sample (i.e. the sample size of our experiment). Let's increase the n to 100 and see what happens to the sd of our sampling distribution.
+
+```{r}
+n = 100
+
+samples = replicate(1000, get_sample_mean(n, rt_data, 'rt'))
+
+sample_data = data.frame(sample = 1:1000, sample_mean = samples)
+
+head(sample_data)
+```
+
+Now we plot the new sampling distribution.
+
+```{r}
+ggplot(sample_data, aes(x = sample_mean)) +
+  geom_histogram() +
+  coord_cartesian(xlim=c(300, 400))
+```
+
+Visually, the distribution is much more narrow.
+
+```{r}
+mean(sample_data$sample_mean)
+sd(sample_data$sample_mean)
+```
+
+And the math checks out. Again, we are close to the population mean in aggregate, but there is much less variability across the estimates. This property is why it is better to have more subjects in an experiment.
+
+In real life, reaction times usually have skew. Let's introduce this into our simulation and see what happens.
+
+```{r}
+rt_data_skew = data.frame(trial = 1:1000, rt = rbeta(1000, 2, 4) * 1050)
+
+ggplot(rt_data_skew, aes(x = rt)) +
+  geom_histogram()
+```
+
+Now we will sample with n = 15 like before.
+
+```{r}
+n = 15
+
+samples = replicate(1000, get_sample_mean(n, rt_data_skew, 'rt'))
+
+sample_data_skew = data.frame(sample = 1:1000, sample_mean = samples)
+
+head(sample_data_skew)
+```
+
+```{r}
+ggplot(sample_data_skew, aes(x = sample_mean)) +
+  geom_histogram()
+```
+
+The skew is gone in the sampling distribution thanks to the central limit theorem.
+
+This idea works even for extremely nonnormal distributions. Let simulate a number of coin flips.
+
+```{r}
+coin_flips = data.frame(trial = 1:1000, flip = rbinom(1000, 1, 0.5))
+
+ggplot(coin_flips, aes(x = flip)) +
+  geom_histogram()
+```
+
+Obviously, this population data is not normal. Let's sample 15 coin flips from this distribution.
+
+```{r}
+n = 15
+
+samples = replicate(1000, get_sample_mean(n, coin_flips, 'flip'))
+
+sample_flips = data.frame(sample = 1:1000, sample_mean = samples)
+
+head(sample_flips)
+```
+
+```{r}
+ggplot(sample_flips, aes(x = sample_mean)) +
+  geom_histogram()
+```
+
+Despite starting with binary data, the sampling distribution is still approximately normal. The histogram looks a little strange because, with n = 15, there's a fairly limited number of possible means. Let's try to clean that up by increasing the n to 100.
+
+```{r}
+n = 100
+
+samples = replicate(1000, get_sample_mean(n, coin_flips, 'flip'))
+
+sample_flips = data.frame(sample = 1:1000, sample_mean = samples)
+
+head(sample_flips)
+```
+
+
+```{r}
+ggplot(sample_flips, aes(x = sample_mean)) +
+  geom_histogram(bins=40)
+```
+
+The histogram still has some gaps, but it is looking closer to normal. Notice again that the sd of the sampling distribution is less than when n = 15.
+
+No matter what our sample data looks like, we can make some good guesses about what the distribution of sample means looks like. The standard deviation of the sampling distribution is called the standard error, and we can estimate it using the number of samples we have (n). Knowing how variable our estimate is important for hypothsis testing and creating confidence intervals.
+
