@@ -172,7 +172,7 @@ group2_mean
 Using the formula from the lecture slides, we can calculate our T value. In the homework, it may be easier to work directly with vectors as I am doing here. To get a vector from a data frame, use the `$` syntax, e.g. `iris$Species`
 
 ```{r}
-standard_error = sqrt((group1_sd^2/length(group1)) + (group2_sd^2/length(group1)))
+standard_error = sqrt((group1_sd^2/length(group1)) + (group2_sd^2/length(group2)))
 (t = (group1_mean - group2_mean) / standard_error)
 # Note the R performs a degrees of freedom correction by default
 (degrees_freedom = length(group1) + length(group2) - 2)
