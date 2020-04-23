@@ -84,7 +84,11 @@ The p-value is `r example_p_value`.
 
 Write up your results again, this time including the effect size.
 
+```{r 2.9}
+# Calculate optimal sample size with power.t.test
 
+
+```
 
 ## Part 3: Permutation Tests
  
