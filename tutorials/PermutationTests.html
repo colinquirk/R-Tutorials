@@ -426,8 +426,8 @@ head(data)</code></pre>
   # iris[iris$Species == &quot;setosa&quot;,]
   # iris[iris$Species == &quot;setosa&quot;,]$Petal.Length
   # mean(iris[iris$Species == &quot;setosa&quot;,]$Petal.Length)
-  group1_mean = mean(diff_result[diff_result$group == &quot;group1&quot;,]$value)
-  group2_mean = mean(diff_result[diff_result$group == &quot;group2&quot;,]$value)
+  group1_mean = diff_result[diff_result$group == &quot;group1&quot;,]$value
+  group2_mean = diff_result[diff_result$group == &quot;group2&quot;,]$value
   
   group2_mean - group1_mean
 }

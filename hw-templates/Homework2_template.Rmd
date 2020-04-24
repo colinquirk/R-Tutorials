@@ -84,6 +84,8 @@ The p-value is `r example_p_value`.
 
 Write up your results again, this time including the effect size.
 
+
+
 ```{r 2.9}
 # Calculate optimal sample size with power.t.test
 
@@ -92,19 +94,19 @@ Write up your results again, this time including the effect size.
 
 ## Part 3: Permutation Tests
  
-```{r 3.9.a}
+```{r 3.10.a}
 # Create a function that will return a random permutation, to be used in a permutation test
 
 
 ```
 
-```{r 3.9.b}
+```{r 3.10.b}
 # Conduct 1000 permutations
 
 
 ```
 
-```{r 3.9.c}
+```{r 3.10.c}
 # Plot a histogram of your permutations with the observed difference represented by a vertical line
 
 
@@ -124,13 +126,13 @@ Write up your permutation results.
 
 ## Part 4: Bootstrapping Confidence Intervals
 
-```{r 4.10}
+```{r 4.11}
 # Calculate the confidence interval around the mean for memorable and forgettable images
 
 
 ```
 
-```{r 4.11.a}
+```{r 4.12.a}
 # Create a function that will generate a bootstraped sample
 # and return the sample mean
 # ?sample_frac
@@ -140,19 +142,26 @@ get_sample = function(data) {
 }
 ```
 
-```{r 4.11.b}
+```{r 4.12.b}
 # Use replicate to generate 1000 sample means for memorable images
 
 
 ```
 
-```{r 4.11.c}
+```{r 4.12.c}
 # Use replicate to generate 1000 sample means for forgettable images
 
 
 ```
 
-```{r 4.11.d}
+```{r 4.12.d}
+# Plot overlaid histograms
+# I found it easier to use two seperate geom_histogram calls in this case
+
+
+```
+
+```{r 4.12.e}
 # Calculate the 95% CIs for memorable and forgettable images
 
 

@@ -68,8 +68,8 @@ get_random_group_diff = function(data) {
   # iris[iris$Species == "setosa",]
   # iris[iris$Species == "setosa",]$Petal.Length
   # mean(iris[iris$Species == "setosa",]$Petal.Length)
-  group1_mean = mean(diff_result[diff_result$group == "group1",]$value)
-  group2_mean = mean(diff_result[diff_result$group == "group2",]$value)
+  group1_mean = diff_result[diff_result$group == "group1",]$value
+  group2_mean = diff_result[diff_result$group == "group2",]$value
   
   group2_mean - group1_mean
 }
