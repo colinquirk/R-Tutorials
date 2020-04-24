@@ -121,6 +121,9 @@ sum(null_values > obs_diff)
 We have observed 6 out of 5000 samples that were greater than our observed difference. Remember a p-value is the probability of our result under the null, so we need to divide by the number of samples we collected from the null to get our p-value.
 
 ```{r}
+(6+1)/(5000+1)
+
+#or
 6/5000
 ```
 
@@ -131,6 +134,9 @@ sum(abs(null_values) > obs_diff)
 ```
 
 ```{r}
+(13+1) / (5000+1)
+
+#or
 13 / 5000
 ```
 

@@ -461,12 +461,18 @@ p + geom_vline(xintercept = obs_diff, color='firebrick2', size=2)</code></pre>
 <pre class="r"><code>sum(null_values &gt; obs_diff)</code></pre>
 <pre><code>## [1] 6</code></pre>
 <p>We have observed 6 out of 5000 samples that were greater than our observed difference. Remember a p-value is the probability of our result under the null, so we need to divide by the number of samples we collected from the null to get our p-value.</p>
-<pre class="r"><code>6/5000</code></pre>
+<pre class="r"><code>(6+1)/(5000+1)</code></pre>
+<pre><code>## [1] 0.00139972</code></pre>
+<pre class="r"><code>#or
+6/5000</code></pre>
 <pre><code>## [1] 0.0012</code></pre>
 <p>So, the p-value we end up with is 0.0012, which is of course less than 0.05. Depending on our design, it may be appropriate to do a two-tailed test (this should normally be your default). So instead of checking for greater null values, we would check generally for “more extreme” values. The easiest way to do this is to use the <code>abs</code> function to take the absolute value of the null_values like so.</p>
 <pre class="r"><code>sum(abs(null_values) &gt; obs_diff)</code></pre>
 <pre><code>## [1] 13</code></pre>
-<pre class="r"><code>13 / 5000</code></pre>
+<pre class="r"><code>(13+1) / (5000+1)</code></pre>
+<pre><code>## [1] 0.00279944</code></pre>
+<pre class="r"><code>#or
+13 / 5000</code></pre>
 <pre><code>## [1] 0.0026</code></pre>
 <p>So, for our two-tailed test we end up with a p-value of 0.0026 which is significant. Now let’s check this against a t-test to see if we end up with a similar result.</p>
 <pre class="r"><code>t.test(group1, group2)</code></pre>
