@@ -1,0 +1,186 @@
+---
+title: "Multiple Comparison Corrections"
+author: "Kate Schertz"
+date: "`r Sys.time()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials/")
+```
+
+```{r message=FALSE}
+library(tidyverse)
+theme_set(theme_minimal())
+set.seed(42)
+```
+
+Here we're reading in the data. This is real data from a study I ran. These are topics that people wrote about in park journals, as discovered by topic modeling. There were 29 parks that served as the locations. Each value is the average prevalence of the topic in journal entries for each park.
+```{r}
+parkdata <- read_csv("Study1_ParkEntryAvgs.csv")
+head(parkdata)
+```
+
+We're going to "pivot longer" to put all the topics in one column for a quick visualization.
+```{r}
+parkdata_long <- parkdata %>% pivot_longer(cols= -Locations, names_to="Topic", values_to = "Prevalence")
+
+#I want my plot to be in the order of my dataframe, instead of alphabetical
+parkdata_long$Topic <- factor(parkdata_long$Topic, levels=unique(parkdata_long$Topic))
+
+ggplot(data=parkdata_long) + 
+  aes(x=Topic, y = Prevalence, color=Topic) + 
+  geom_jitter(width = .3) +
+  theme(axis.text.x = element_text(angle=45, vjust=.65, hjust = .7))
+```
+
+Today we're going to see if the prevelance of Family is significantly different across all the parks from each of the other topics. Since the topics are coming from the same parks, this is 9 paired t-tests.
+```{r}
+#Aside: if we wanted to check all topics against all other topics, the total number of tests can be found using the choose() function
+
+t.test(parkdata$Family, parkdata$Park, paired = T)
+t.test(parkdata$Family, parkdata$`Life & Emotions`, paired = T)
+t.test(parkdata$Family, parkdata$`Time & Memories`, paired = T)
+t.test(parkdata$Family, parkdata$Art, paired = T)
+t.test(parkdata$Family, parkdata$Nature, paired = T)
+t.test(parkdata$Family, parkdata$Religion, paired = T)
+t.test(parkdata$Family, parkdata$`World & Peace`, paired = T)
+t.test(parkdata$Family, parkdata$Celebration, paired = T)
+t.test(parkdata$Family, parkdata$`Spiritual & Life Journey`, paired = T)
+```
+
+This is giving us a lot of details but let's make it a little more succinct for easier comparisons. 
+```{r}
+#Turning off scientific notation
+options(scipen=999)
+
+# Saving only the p-values from the t-tests and making them into one vector
+nocorrection_p <- as.vector(c(t.test(parkdata$Family, parkdata$Park, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$`Life & Emotions`, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$`Time & Memories`, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$Art, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$Nature, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$Religion, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$`World & Peace`, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$Celebration, paired = T)$p.value,
+t.test(parkdata$Family, parkdata$`Spiritual & Life Journey`, paired = T)$p.value))
+
+# Saving the topic names in order that the p-value represents. Since I ran the tests in order of columns in the data frame, we can use the column names, removing Locations and Family 
+names <- colnames(parkdata)[-(1:2)]
+
+tests_df <- tibble(names, nocorrection_p)
+tests_df
+
+# Which are signifiant with no multiple comparison correction at an alpha of .05?
+alpha <- .05
+tests_df <- tests_df %>% arrange(nocorrection_p) %>% mutate(SigOrigP = nocorrection_p < alpha)
+tests_df
+```
+
+##Bonferroni correction 
+```{r}
+numtests <- nrow(tests_df)
+tests_df <- tests_df %>% mutate(SigBonferroniP = nocorrection_p < alpha/numtests)
+tests_df
+```
+
+
+##False Detection Rate (Benjamini-Hochberg procedure)
+```{r}
+#Since we already ordered the rows by p-value, this is the rank of p-values.
+tests_df <- tests_df %>% mutate(i = row_number())
+
+#I want to check Q=.05 and Q=.25, but usually you'd just pick one before you ran your study, so you could set Q as a variable
+tests_df <- tests_df %>% 
+  mutate(BH_q05 = (i/numtests)*.05, q05_sig = nocorrection_p < BH_q05,
+         BH_q25 = (i/numtests)*.25, q25_sig = nocorrection_p < BH_q25)
+tests_df[,-4]
+```
+
+
+Let's visualize this to see how different p-values drop out based on the Q you choose.
+```{r}
+ggplot(data=tests_df) + aes(x=i, y=nocorrection_p) +
+  geom_line() +
+  geom_line(aes(x=i, y=BH_q05, color="5% FDR"), linetype="longdash") + 
+  geom_line(aes(x=i, y=BH_q25, color="25% FDR"), linetype="dashed") +
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  scale_y_continuous(breaks=seq(0,.35,.05)) +
+  labs(x="Rank",y="p/q value", color='q lines')
+```
+
+Let's also visualize what happens to the "q lines" when you change the number of tests. Let's say we had tested all topics against all others; that would be 45 t-tests. 
+```{r}
+tests_df <- tests_df %>% 
+  mutate(BH_q05_moretest = (i/45)*.05, q05_moretest_sig = nocorrection_p < BH_q05_moretest,
+         BH_q25_moretest = (i/45)*.25, q25_moretest_sig = nocorrection_p < BH_q25_moretest)
+
+ggplot(data=tests_df) + aes(x=i, y=nocorrection_p) +
+  geom_line() +
+  geom_line(aes(x=i, y=BH_q05, color="5% FDR"), linetype="dotdash") + 
+  geom_line(aes(x=i, y=BH_q25, color="25% FDR"), linetype="longdash") +
+  geom_line(aes(x=i, y=BH_q05_moretest, color="5% FDR, 45 Tests"), linetype="dashed")+
+  geom_line(aes(x=i, y=BH_q25_moretest, color="25% FDR, 45 Tests"), linetype="dotted")+
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  scale_y_continuous(breaks=seq(0,.35,.05)) +
+  labs(x="Rank",y="p/q value", color='q lines')
+
+```
+
+##Using R's built in functions
+This function takes a vector of unadjusted p-values and returns the adjusted p-values, which you then compare to your alpha. Instead of dividing alpha by the number of tests, the bonferroni correction is multiplying the p-values by the number of tests (max = 1). For Benjamini-Hochberg, instead of generating the q-value to compare to your p-values, it's adjusting the p-value directly (p-value*number of test/rank) to compare to your FDR. 
+```{r}
+#Bonferroni
+tests_df$autoBonferroni <- p.adjust(tests_df$nocorrection_p, method="bonferroni")
+tests_df <- tests_df %>% mutate(AutoBon_sig = autoBonferroni < alpha)
+tests_df
+tests_df[,-c(5:13)]
+
+#Benjamini-Hochberg
+fdr <- .05
+tests_df$autoBH <- p.adjust(tests_df$nocorrection_p, method="BH")
+tests_df <- tests_df %>% mutate(AutoBH_sig = autoBH < fdr)
+tests_df[,-c(4,7:15)]
+
+```
+
+##Flexible Functions
+
+These functions take a vector of p-values and return TRUE/FALSE for whether the p-value survives your multiple comparison correction.
+```{r}
+Bonferroni <- function(p, alpha=.05){
+  tests <- length(p)
+  bonf_alpha <- alpha/tests
+  for (i in 1:length(p)){
+    pass <- p[i] < bonf_alpha
+    print(paste(as.character(round(p[i],5)), pass))
+  }
+}
+
+Bonferroni(tests_df$nocorrection_p, .05)
+
+BenjaminiHochberg <- function(p, q=.25){
+  p_sorted <- sort(p)
+  tests <- length(p)
+  for (i in 1:length(p)){
+    pass <- p[i] < (i/tests)*q
+    print(paste(as.character(round(p[i],5)), pass))
+  }
+}
+
+BenjaminiHochberg(tests_df$nocorrection_p, q=.05)
+```
+
+
+
+##Extra: Holm-Bonferroni 
+(a slightly less conservative version of Bonferroni) 
+For the most significant p-value, you divide by the number of tests. For the next p-value, you subtract 1 from the number of tests, because that's the number of tests you have remaining...continuing until you reach a non-significant test. With these data, it didn't make a difference.
+```{r}
+tests_df <- tests_df %>% mutate(HBsig = nocorrection_p < alpha/(numtests-i+1))
+tests_df[,-c(5:17)]
+```
+
+#Reference: 
+Full dataset available online: https://doi.org/10.1016/j.cognition.2018.01.011
