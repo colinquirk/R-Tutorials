@@ -93,19 +93,14 @@ Discuss generally the findings from the above t-tests, what you can conclude, an
 # Part 2: Multiple Comparisons Correction
 
 ```{r 2.4}
-# Create a function that takes in a vector of unordered p-values and
-# returns a bool for each p-value indicating if the null is rejected
-# Assume the original alpha = 0.05
-# Show your function works on a toy set of p-values
-# ?length
+# Conduct Bonferroni correction from scratch
+# Put all your t-test p-values into a dataframe and include a column with their original significance (TRUE/FALSE)
 
-bonferroni = function(p) {
-  
-}
 ```
 
 ```{r 2.4.a}
-# Use your bonferroni function to determine which p-values from part 1 survive correction
+# Write code to determine which tests survive Bonferroni correction by adding a new column to your dataframe (TRUE/FALSE)
+# Verify that the columns important for answering this question can be seen on your knitted html document
 
 
 ```
@@ -123,18 +118,9 @@ Rewrite the results for the tests taking into account the correction.
 
 
 ```{r 2.5}
-# Create a function that takes in a vector of unordered p-values and
-# returns a bool for each p-value indicating if the null is rejected
-# Show your function works on a toy set of p-values
-# ?sort
 
-fdr_correction = function(p) {
-  
-}
-```
-
-```{r 2.5.a}
-# Use your function to correct the tests performed in part 1
+# Write code to determine which tests survive Benjamini Hochberg correction (with q=.05) by adding a new column to your dataframe (TRUE/FALSE)
+# Verify that the columns important for answering this question can be seen on your knitted html document
 
 
 
@@ -149,10 +135,13 @@ Write up the results of the tests.
 
 
 
+Is this code flexible to other datasets? If not, what would you need to do to use it with other data?
+
 
 
 ```{r 2.5.c}
-# Perform an fdr correction using p.adjust()
+# Perform an fdr correction using p.adjust(). Add columns to your dataframe showing these adjusted p-values and their significance.
+# Verify that the columns important for answering this question can be seen on your knitted html document.
 
 
 
