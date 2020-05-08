@@ -1,0 +1,254 @@
+---
+title: "Best Fit Lines"
+author: "Kate Schertz"
+date: "3/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+theme_set(theme_minimal())
+set.seed(42)
+```
+
+##Best Fit for Strong Relationships
+First let's look at toy data with a strong relationship. You can see that the error term is small compared to our predictor, x.
+```{r}
+x <- rnorm(n=100,mean= 5, sd=1)
+error <- rnorm(n=100, mean=0, sd=.2)
+y <- x + error
+
+data_fit <- tibble(y=y, x=x)
+
+p1 <- ggplot(data=data_fit) + aes(x=x, y=y) +
+  geom_point()
+p1
+```
+
+Now let's calculate our best fit line using the formula from the lecture. 
+
+The equation of the line is: y = mx + b
+
+To calculate the slope (m), we need columns representing:
+
+(xi - mean of X)
+
+(yi - mean of Y)
+
+Product of (xi - mean of X)(yi - mean of Y)
+
+(xi - mean of X)^2
+
+where m = sum((xi - mean of X)(yi - mean of Y))/sum((xi - mean of X)^2)
+
+Once we have the slope, we can solve for the intercept (b) by plugging in mean of X and mean of Y.
+```{r}
+
+meanX <- mean(data_fit$x)
+meanX
+meanY <- mean(data_fit$y)
+meanY
+
+data_fit <- data_fit %>% 
+  mutate(minusMeanX = x-meanX,
+         minusMeanY = y-meanY,
+         productminusmeans = minusMeanX*minusMeanY,
+         minusMeanXsqrd = (x-meanX)^2)
+head(data_fit)
+
+m <- sum(data_fit$productminusmeans)/sum(data_fit$minusMeanXsqrd)
+m
+
+# Rewrite above equation as b = y - mx
+b <- meanY - m*meanX
+b
+
+```
+
+Now we can add this line to our scatterplot. We'll also change the x and y axis to show the intercept.
+```{r}
+p1 + geom_abline(slope = m, intercept = b) +
+  coord_cartesian(xlim = c(-1,8), ylim = c(-1,8))
+```
+
+We can also add the automatically generated best fit line, to see if it looks the same as our manually calculated line.
+```{r}
+p1 + geom_smooth(method="lm", formula = "y ~ x", se=T)
+```
+
+An aside, if you want to "zoom in" to focus on a particular range of your data, be careful about setting xlim and ylim smaller. If you don't set them inside coord_cartesian(), ggplot will exclude data when calculating the best fit line!
+```{r}
+#Example of bad practice
+p1 + geom_smooth(method="lm", formula = "y ~ x", se=T) +
+  xlim(c(6,8)) + 
+  ylim(c(6,8))
+
+#Better practice
+p1 + geom_smooth(method="lm", formula = "y ~ x", se=T) +
+  coord_cartesian(xlim=c(6,8), ylim=c(6,8))
+```
+
+
+Back to our data. We were able to see the best fit line without separately calculating it. Let's verify that we found the same equation.
+```{r}
+model1 <- lm(y ~ x, data=data_fit)
+summary(model1)
+```
+
+You look in the "estimate" column to determine your m (slope) and b (intercept). The R-squared is also very high.
+
+To plot the residuals:
+```{r}
+plot(model1$residuals)
+```
+
+##Best Fit for Weaker Relationships
+Now let's change the size of the error term to see how that changes the fit and the residuals.
+```{r}
+x2 <- rnorm(n=100,mean= 5, sd=1)
+error2 <- rnorm(n=100, mean=0, sd=2)
+y2 <- x2 + error2
+
+data_fit2 <- tibble(y2=y2, x2=x2)
+
+ggplot(data=data_fit2) + aes(x=x2, y=y2) +
+  geom_point() +
+  geom_smooth(method="lm", formula = "y ~ x", se = T)
+```
+
+```{r}
+model2 <- lm(y2 ~ x2, data=data_fit2)
+summary(model2)
+```
+
+Notice that our R-squared is much lower. Our residual plot should look similar to the first one - the values are larger, but the pattern (or lack thereof is the same).
+```{r}
+plot(model2$residuals)
+```
+
+What if we check the sum of the residuals for those last two best fit lines?
+```{r}
+sum(model1$residuals)
+sum(model2$residuals)
+```
+
+They are both basically zero. That will be the case for each best fit line, so it doesn't actually tell you anything about the fit of the line. A better option is Mean Square Error.
+```{r}
+mean((model1$residuals)^2)
+mean((model2$residuals)^2)
+```
+
+
+
+##Best Fit for No Relationship
+What happens if we plot a line where there isn't a relationship?
+```{r}
+x3 <- rnorm(100, mean=10, sd = 1)
+y3 <- rnorm(100, mean=20, sd = 1)
+
+data_fit3 <- tibble(y3=y3, x3=x3)
+
+ggplot(data=data_fit3) + aes(x=x3, y=y3) +
+  geom_point() +
+  geom_smooth(method="lm", formula = "y ~ x", se = T)
+```
+
+
+```{r}
+model3 <- lm(y3 ~ x3, data=data_fit3)
+summary(model3)
+```
+
+What if we add an outlier to that last dataset?
+```{r}
+outlier <- c(26,15)
+data_fit4 <- rbind(data_fit3, outlier)
+tail(data_fit4)
+```
+
+Now let's plot again:
+```{r}
+ggplot(data=data_fit4) + aes(x=x3, y=y3) +
+  geom_point() +
+  geom_smooth(method="lm", formula = "y ~ x", se = T)
+```
+
+```{r}
+model4 <- lm(y3 ~ x3, data=data_fit4)
+summary(model4)
+```
+
+Just one outlier was enough to make both x and the overall model significant. We often talk about the bad practice of excluding data in order to get significant results, but we should also check that results aren't being driven by just one data point.
+
+```{r}
+plot(model4$residuals)
+```
+
+##Using other lines
+
+What happens if we use a line other than best fit? Here we are using our "weaker relationship data" from earlier, but plotting a line where I arbitrarily changed the intercept to 2.
+```{r}
+ggplot(data=data_fit2) + aes(x=x2, y=y2) +
+  geom_point() +
+  geom_smooth(method="lm", formula = "y ~ x", se = T) +
+  geom_abline(slope = model2$coefficients[2], intercept = 2)
+```
+
+Remember, residuals are just actual value - predicted value. So, to calculate residuals for our new line, we can create new columns for our predicted values.
+```{r}
+data_fit2 <- data_fit2 %>% 
+  mutate(pred_newintercept_y = model2$coefficients[2]*x2 + 2, 
+         pred_y = model2$coefficients[2]*x2 + model2$coefficients[1], 
+         resid_bestfit = y2 - pred_y, 
+         resid_newintercept = y2 - pred_newintercept_y,
+         Index = row_number())
+
+#Another way to plot the residuals of "model2"
+ggplot(data=data_fit2) + aes(x=Index, y=resid_bestfit) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+
+#Residuals using new intercept
+ggplot(data=data_fit2) + aes(x=Index, y=resid_newintercept) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+
+```
+
+
+##Fitting lines to non-linear data
+```{r}
+x <- runif(n=1000, min=-20, max=40)
+error <- rnorm(1000, mean=0, sd=100)
+y <- (x^2) + error
+
+data_nonlinear <- tibble(y=y, x=x)
+
+ggplot(data_nonlinear, aes(x = x, y = y)) +
+  geom_point() +
+  geom_smooth(method="lm", formula = "y ~ x", se = T)
+
+
+```
+
+What do the residuals look like here?
+```{r}
+model5 <- lm(y ~ x, data=data_nonlinear)
+summary(model5)
+plot(model5$residuals)
+```
+
+The pattern may be easier to see if you compare the residuals to the fitted value (predicted value of y).
+```{r}
+plot(model5$fitted.values, model5$residuals)
+```
+
+Compare to one of our linear models from earlier.
+```{r}
+plot(model2$fitted.values, model2$residuals)
+```
+
