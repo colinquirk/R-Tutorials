@@ -1,0 +1,209 @@
+---
+title: "Chi-Square and F Distributions"
+author: "Colin Quirk"
+date: "4/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+theme_set(theme_minimal())
+
+set.seed(42)
+```
+
+In this tutorial, we are going to be looking at the chi-square distribution, how it relates to the F distribution, and finally how these distributions relate to regression. Why is this distribution so important? Well, the sum of squares of a number of independent, standard normal random variables takes on the shape of a chi-square distribution. Remember how we assume our models have normally distributed, independent residuals? This allows us to assume that the sum of squares of those residuals are distributed as a chi-square distribution (after standardizing them).
+
+## Definition of the chi-square distribution
+
+The chi-square distribution has a single parameter, k, which represents degrees of freedom. Because we are squaring our normally distributed random variables, the chi-square distribution cannot be negative. As k increases, the sum of all the values is pushed higher.
+
+```{r echo=FALSE}
+dfs = c(1, 2, 3, 5, 15, 50)
+colors <- c("red", "blue", "darkgreen", "gold", "black", "purple")
+labels <- c("df=1", "df=2", "df=3", "df=5", "df=15", "df=50")
+x = seq(0, 6, length.out=100)
+
+plot(x, dchisq(x, 1), ylim=c(0, 0.5), type='l', ylab = 'Density', main="Comparison of Chi-Square Distributions")
+
+for (i in 1:length(dfs)){
+  lines(x, dchisq(x, i), lwd=2, col=colors[i])
+}
+
+legend("topright", inset=.05, title="Distributions",
+  labels, lwd=2, lty=1, col=colors)
+```
+
+Briefly, let's simulate some data to gain an intuition for what this plot is telling us. For k = 1, we are getting a single random normal variable and squaring it. A normally distributed variable is likely to be close to zero, so the square of that variable is also likely to be close to zero.
+
+```{r}
+x = replicate(100, sum(rnorm(1)^2))
+
+head(x)
+
+hist(x)
+```
+
+Now, let's think about k = 5. Each individual variable is still likely to be close to 0, but the sum of them slowly push to the right. Additionally, there is a higher chance of an outlier which, due to the square, will have a large impact on the sum.
+
+```{r}
+x = replicate(100, sum(rnorm(5)^2))
+
+head(x)
+
+hist(x)
+```
+
+## Chi-square test
+
+Most of you probably know of the chi-square distribution in relation to the chi-square test, which is used to determine significance if you are working with categorical data in a contingency table. I want to show how to do this test in R briefly, in case you ever need it. Under the null hypothesis that there is no association between your categorical variables, your expected deviation has a chi-square distribution.
+
+Here is a quick example. Imagine we asked 100 men and 100 women if they like cats and our data looked like this.
+
+```{r}
+cats = as.table(matrix(c(54, 82, 46, 18), ncol=2))
+colnames(cats) = c("Likes cats", "Does not like cats")
+rownames(cats) = c("male", "female")
+
+knitr::kable(cats)
+```
+
+To calculate our chi-square test statistic, we the sum of the residuals squared divided by the expected value.
+
+```{r}
+expected = outer(rowSums(cats), colSums(cats), "*") / 200
+sum(((cats - expected)^2) / expected)
+```
+
+To generate a p-value, we use `pchisq`.
+
+```{r}
+pchisq(18, df = 1, lower.tail = FALSE)
+```
+
+We can check our work using `chisq.test`.
+
+```{r}
+chisq.test(cats, correct = FALSE)
+```
+
+## Chi-square in the T-distribution
+
+The Chi-square distribution is actually an important piece of the t-distribution. You can think of the t-distribution as N / sqrt(V / k) where N is the standard normal, V being a chi-square distribution with k degrees of freedom. Here is a plot comparing the standard normal distribution to a t-distribution with df = 3.
+
+```{r echo=FALSE}
+x = seq(-4, 4, length.out=100)
+n = dnorm(x)
+t = dt(x, df = 3)
+
+plot(x, n, type='l',lwd = 2, ylab = 'Density')
+lines(x, t, lwd=2, col="red")
+legend("topright", inset=.05, title="Distributions",
+  c("N(0,1)", "T(df=3)"), lwd=2, lty=1, col=c("black", "red"))
+```
+
+Let's now sample from the t-distribution using `rnorm` and `rchisq` instead of `rt`. We will plot a QQ plot which compares our sampled data to the theoretical t-distribution.
+
+```{r}
+norms = rnorm(1000)
+chis = rchisq(1000, df = 3)
+
+t = norms / sqrt(chis / 3)
+theoretical_t = qt(ppoints(100), df=3)
+
+qqplot(theoretical_t, t, ylim = c(-6, 6))
+lines(seq(-6, 6, length.out=100), seq(-6, 6, length.out=100))
+```
+
+The fact that our points fall nearly perfectly onto the line suggests that our distibution is nearly perfectly aligned with the theoretical t-distribution.
+
+## Chi-square distribution in Regression
+
+In a regression, our overall test statistic comes from an F distribution. The F distribution is the ratio of two independent chi-square distributions. A ratio of two positive numbers is also positive, so the F distribution is also nonnegative.
+
+```{r echo=FALSE}
+df1 = c(1, 1, 5, 10, 25)
+df2 = c(1, 5, 1, 10, 25)
+
+colors <- c("red", "darkgreen", "gold", "purple", "blue")
+labels <- c("df=1,1", "df=1,5", "df=5,1", "df=10,10", "df=25,25")
+x = seq(0, 2, length.out=100)
+
+plot(x, df(x, 1, 1), type='l', ylab = 'Density', main="Comparison of F Distributions")
+
+for (i in 1:length(dfs)){
+  lines(x, df(x, df1[i], df2[i]), lwd=2, col=colors[i])
+}
+
+legend("topright", inset=.05, title="Distributions",
+  labels, lwd=2, lty=1, col=colors)
+```
+
+Let's generate samples from F(5, 5) using rchisq as we did with the T-distribution.
+
+```{r}
+chi1 = rchisq(1000, df = 5) / 5
+chi2 = rchisq(1000, df = 5) / 5
+
+f = chi1 / chi2
+theoretical_f = qf(ppoints(50), 5, 5)
+
+qqplot(theoretical_f, f, ylim = c(0, 10))
+lines(seq(0, 10, length.out=100), seq(0, 10, length.out=100))
+```
+
+As you can see, our sampled data closely fits an F(5, 5) distribution. Finally, let's use the F distribution to calculate if a regression model is significant by hand.
+
+Let's look at how petal length varies over different species of iris.
+
+```{r}
+head(iris)
+```
+
+```{r}
+fit = lm(Petal.Length ~ Petal.Width, data=iris)
+
+fit$coefficients
+
+iris_with_predictions = iris %>% 
+  mutate(reg_pred = fit$coefficients[1] + fit$coefficients[2] * Petal.Width,
+         null_pred = mean(Petal.Length),  # null model just predicts the mean
+         reg_res = reg_pred - Petal.Length,
+         null_res = null_pred - Petal.Length)
+
+head(iris_with_predictions)
+```
+
+```{r}
+(df_e = 1)  # Petal.Width coef, plus intercept, minus 1
+(df_r = nrow(iris) - 2)
+
+(SSR = sum(iris_with_predictions$reg_res^2))
+(SSE = sum(iris_with_predictions$null_res^2) - SSR)
+
+(MSR  = SSR / df_r)
+(MSE  = SSE / df_e)
+
+(f_val = MSE / MSR)
+```
+
+
+Our F value is over 1000, we can use `pf` to get our p-value.
+
+```{r}
+pf(f_val, df_e, df_r, lower.tail = FALSE)
+```
+
+Let's use lm to check our work.
+
+```{r}
+summary(fit)
+```
+
+Spoiler for the future, the math here is similar to an anova. You can use the anova function to check your math.
+
+```{r}
+anova(fit)
+```
+
