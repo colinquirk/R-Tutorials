@@ -176,23 +176,23 @@ head(iris_with_predictions)
 ```
 
 ```{r}
-(df_e = 1)  # Petal.Width coef, plus intercept, minus 1
-(df_r = nrow(iris) - 2)
+(df_r = 1)  # Petal.Width coef, plus intercept, minus 1
+(df_e = nrow(iris) - 2)
 
-(SSR = sum(iris_with_predictions$reg_res^2))
-(SSE = sum(iris_with_predictions$null_res^2) - SSR)
+(SSE = sum(iris_with_predictions$reg_res^2))
+(SSR = sum(iris_with_predictions$null_res^2) - SSE)
 
 (MSR  = SSR / df_r)
 (MSE  = SSE / df_e)
 
-(f_val = MSE / MSR)
+(f_val = MSR / MSE)
 ```
 
 
 Our F value is over 1000, we can use `pf` to get our p-value.
 
 ```{r}
-pf(f_val, df_e, df_r, lower.tail = FALSE)
+pf(f_val, df_r, df_e, lower.tail = FALSE)
 ```
 
 Let's use lm to check our work.

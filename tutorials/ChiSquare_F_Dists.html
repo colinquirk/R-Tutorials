@@ -500,22 +500,22 @@ head(iris_with_predictions)</code></pre>
 ## 4     3.758 0.02954613    2.258
 ## 5     3.758 0.12954613    2.358
 ## 6     3.758 0.27553423    2.058</code></pre>
-<pre class="r"><code>(df_e = 1)  # Petal.Width coef, plus intercept, minus 1</code></pre>
+<pre class="r"><code>(df_r = 1)  # Petal.Width coef, plus intercept, minus 1</code></pre>
 <pre><code>## [1] 1</code></pre>
-<pre class="r"><code>(df_r = nrow(iris) - 2)</code></pre>
+<pre class="r"><code>(df_e = nrow(iris) - 2)</code></pre>
 <pre><code>## [1] 148</code></pre>
-<pre class="r"><code>(SSR = sum(iris_with_predictions$reg_res^2))</code></pre>
+<pre class="r"><code>(SSE = sum(iris_with_predictions$reg_res^2))</code></pre>
 <pre><code>## [1] 33.84475</code></pre>
-<pre class="r"><code>(SSE = sum(iris_with_predictions$null_res^2) - SSR)</code></pre>
+<pre class="r"><code>(SSR = sum(iris_with_predictions$null_res^2) - SSE)</code></pre>
 <pre><code>## [1] 430.4806</code></pre>
 <pre class="r"><code>(MSR  = SSR / df_r)</code></pre>
-<pre><code>## [1] 0.2286808</code></pre>
-<pre class="r"><code>(MSE  = SSE / df_e)</code></pre>
 <pre><code>## [1] 430.4806</code></pre>
-<pre class="r"><code>(f_val = MSE / MSR)</code></pre>
+<pre class="r"><code>(MSE  = SSE / df_e)</code></pre>
+<pre><code>## [1] 0.2286808</code></pre>
+<pre class="r"><code>(f_val = MSR / MSE)</code></pre>
 <pre><code>## [1] 1882.452</code></pre>
 <p>Our F value is over 1000, we can use <code>pf</code> to get our p-value.</p>
-<pre class="r"><code>pf(f_val, df_e, df_r, lower.tail = FALSE)</code></pre>
+<pre class="r"><code>pf(f_val, df_r, df_e, lower.tail = FALSE)</code></pre>
 <pre><code>## [1] 4.675004e-86</code></pre>
 <p>Let’s use lm to check our work.</p>
 <pre class="r"><code>summary(fit)</code></pre>
