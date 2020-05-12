@@ -1,0 +1,270 @@
+---
+title: "Cross Validation"
+author: "Colin Quirk"
+date: "3/22/2020"
+output: html_document
+---
+
+```{r message=FALSE}
+library(tidyverse)
+
+#install.packages(glmnet)
+# Comment this line out if you are playing with this code and don't want to run the last section
+library(glmnet)
+
+set.seed(1)
+
+theme_set(theme_minimal())
+```
+
+# Creating a Validation Set
+
+In this section, we will be creating a simple holdout dataset from a single dataset. We will be using the `iris` dataset, which is preloaded into R.
+
+```{r}
+# an id makes it easier to check your operations
+iris = iris %>% mutate(id = row_number()) %>% select(id, everything())
+
+head(iris)
+```
+
+The simplest method for creating a validation set is just to randomly sample. We can make use of setdiff to create our train set once we know what rows are in the validation set.
+
+```{r message=FALSE}
+holdout_random = iris %>% 
+  sample_frac(0.2)
+
+train_random = setdiff(iris, holdout_random)
+
+head(holdout_random)
+```
+
+However, randomly splitting the data may cause problems if you want to make sure you are keeping the correct amounts of certain conditions. Using group_by, we can make sure our train and validation sets have equal numbers of species.
+
+```{r message=FALSE}
+holdout_grouped = iris %>% 
+  group_by(Species) %>% 
+  sample_frac(0.2)
+
+train_grouped = setdiff(iris, holdout_grouped)
+
+count(holdout_grouped, Species)
+```
+
+How you create your validation set is very important if there is any time information in your data (even if you aren't actively using that data to model!). If you have a reason to believe that data is dependent over time you should usually use the last rows within each group as your validation set. Here is an example of how to do that.
+
+```{r message = FALSE}
+holdout_timeseries = iris %>% 
+  group_by(Species) %>% 
+  top_frac(0.2, wt = id) 
+
+train_timeseries = setdiff(iris, holdout_timeseries)
+
+head(holdout_timeseries)
+```
+
+# Fitting a Model and Getting Predictions
+
+From here on out we will be using the holdout data which matched the number of each species. We will start by fitting a linear model to predict sepal length.
+
+```{r}
+fit = lm(Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species, data = train_grouped)
+
+summary(fit)
+```
+
+As we can see, our model seems to fit well on our training data. Let's check the residuals.
+
+```{r}
+plot(residuals(fit))
+```
+
+Everything seems to look normal here, so now we should check to see if we get similar performance on our validation set. To do this, we will use root mean squared error (rmse) as it is a quick way to compare performance. To get rmse for our validation set, we need to use our model to make predictions on it, using the `predict` function.
+
+```{r}
+(train_rmse = sqrt(mean(residuals(fit)^2)))
+
+predicitons = predict(fit, holdout_grouped)
+valid_residuals = holdout_grouped$Sepal.Length - predicitons
+
+(valid_rmse = sqrt(mean(valid_residuals^2)))
+```
+
+Performance is very similar, suggesting that we are just as predictive on our holdout data as we are on our validation data.
+
+In order to generate a correlation between the predicted values and the actual values, we will use the `cor` function.
+
+```{r}
+cor(predicitons, holdout_grouped$Sepal.Length)
+```
+
+Because this R value is close to 1, we conclude there is a good fit for the holdout data.
+
+# K-fold Cross Validation
+
+Here we will show how to perform cross validation, which will give us a distribution of metrics instead of a single value. To do this, we will setup a column defining folds and then randomize it within species.
+
+```{r}
+iris_folded = iris %>% 
+  mutate(fold = rep(1:5, 30)) %>%  # 5 folds with n = 30
+  group_by(Species) %>%  # Keep the folds balanced across species
+  mutate(fold = sample(fold)) # randomize the fold column
+
+count(iris_folded, Species, fold)
+
+head(iris_folded)
+```
+
+Now, for each fold we will create a model and print out the R value for the correlation between predicted and actuals.
+
+```{r}
+for (fold_number in 1:5) {
+  train = iris_folded %>% filter(fold != fold_number)
+  valid = iris_folded %>% filter(fold == fold_number)
+  
+  folded_model = lm(Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species, data = train)
+  
+  folded_predictions = predict(folded_model, valid)
+  
+  r = cor(folded_predictions, valid$Sepal.Length)
+  print(r)
+}
+```
+
+While there is some random noise, we can see that in general our mean R value is around 0.92.
+
+# Underfitting and Overfitting
+
+In order to explore the concepts of underfitting and overfitting, we will generate a toy dataset. To generate a moderately complex function, we will have a dependent variable `y` be predicted by an exponential relationship with one independent variable and a linear relationship with another. We can then explore how different types of models fit to this data. While we are adding complexity by using a higher degree polynomial, it's important to understand that these concepts hold for model complexity generally, which includes models with a large number of factors.
+
+```{r}
+# Simulating data with y = b1^2 + b2 + error
+
+b1 = rnorm(1000)
+b2 = rnorm(1000)
+error = rnorm(1000)
+
+holdout_b1 = rnorm(1000)
+holdout_b2 = rnorm(1000)
+holdout_error = rnorm(1000)
+
+y = b1^2 + b2 + error
+holdout_y = holdout_b1^2 + holdout_b2 + holdout_error
+
+data = data.frame(y=y, b1=b1, b2=b2)
+holdout_data = data.frame(y=holdout_y, b1=holdout_b1, b2=holdout_b2)
+
+head(data)
+```
+
+First, let's plot the data.
+
+```{r}
+ggplot(data, aes(x = b1, y = y, color = b2)) +
+  geom_point()
+```
+
+As you can see, there is an exponential relationship between b1 and y as well as a linear relationship between b2 and y (pay attention to the color of the points). Now we will create a purely linear model that will underfit to the patterns in our data.
+
+```{r}
+fit.1 = lm(y ~ b1 + b2, data=data)
+
+summary(fit.1)
+
+(rmse_1 = sqrt(mean(fit.1$residuals^2)))
+```
+
+Our model is significant overall, but we know that it is not able to use the information contained in our b1 factor. Let's plot our residuals for the above model.
+
+```{r}
+plot(residuals(fit.1))
+```
+
+Clearly, our model is not able to pick up on the relationship between b1 and y. You can see this in the residuals plot. We expect our error to be normally distributed noise, but instead we see a number of highly positive residuals with no highly negative residuals.
+
+```{r}
+holdout_1_residuals = holdout_y - predict(fit.1, holdout_data)
+
+(rmse_1_holdout = sqrt(mean(holdout_1_residuals^2)))
+```
+Here we are looking at the rmse of our model for simplicity, but this logic can work for any metric you want to use. The rmse on our training set was `r round(rmse_1, digits = 3)`, and `r round(rmse_1_holdout, digits = 3)` on our validation set. Just looking at rmse, it can be hard to tell whether your model is underfitting or overfitting. This is why it's important to also look at your residuals for any patterns.
+
+Now we will create a 15th degree polynomial model which will overfit to our data.
+
+```{r}
+fit.2 = lm(y ~ poly(b1, 15) + b2, data=data)
+
+summary(fit.2)
+
+(rmse_2 = sqrt(mean(fit.2$residuals^2)))
+```
+
+```{r}
+plot(residuals(fit.2))
+```
+
+Here our residual plot looks good, but we need to check our error on our holdout data to look for overfitting. Our training set had an rmse of `r round(rmse_2, digits = 3)` which is obviously much better than our underfit model. Let's calculate rmse on our holdout data.
+
+```{r}
+holdout_2_residuals = holdout_y - predict(fit.2, holdout_data)
+
+(rmse_2_holdout = sqrt(mean(holdout_2_residuals^2)))
+```
+
+As we can see, the holdout rmse is considerably higher than the rmse on the training set, which suggests there is probably overfitting. Just because you have normal residuals and low error, does not mean that your model is useful for making predictions on new data!
+
+Finally, we will create a model with only a second degree polynomial to see what a good fit looks like.
+
+```{r}
+fit.3 = lm(y ~ poly(b1, 2) + b2, data=data)
+
+summary(fit.3)
+
+(rmse_3 = sqrt(mean(fit.3$residuals^2)))
+```
+
+```{r}
+plot(residuals(fit.3))
+```
+
+We get a similar rmse on our training set, which makes sense as the more complex model would have a hard time fitting better to the random noise that was left over after the main effects were regressed out. Once again, our residuals look as we would expect with a good fit.
+
+```{r}
+holdout_3_residuals = holdout_y - predict(fit.3, holdout_data)
+
+(rmse_3_holdout = sqrt(mean(holdout_3_residuals^2)))
+```
+
+Now, we can see that the rmse on our holdout set is much closer to the rmse on our training set, which means we have a better fit. It will usually be the case with more complicated models that you will have slightly worse performance on your validation set as it is usually impossible to completely avoid fitting to noise. It's up to you to determine what level of performance you think you can get out of your model.
+
+Note: If you are going to be doing a lot of model testing and adjusting in order to create the best possible model (which I encourage), you should probably have 3 datasets: a training dataset, a validation dataset, and a test dataset. You can follow all the processes for creating your model using your train and valid datasets, but when you are done you should also report the accuracy on your test dataset. This is useful to make sure you haven't accidentally overfit to your validation set by making decisions that improve validation accuracy by chance.
+
+
+# Regularization
+
+Briefly, I wanted to discuss the use of regularization, which can prevent your models from overfitting automatically. The idea is to penalize the addition of factors that are not providing much value to your model. The simplest form of regularization is lasso regularization, which will set coefficients to 0 if they are deemed to be unimportant. Let's try to fit our overfit model again, this time while also performing lasso regularization. To do this, we need to pass in our data as a matrix.
+
+```{r}
+y = data$y
+
+x = as.matrix(data[2:3])
+
+holdout_x = as.matrix(holdout_data[2:3])
+
+# Add additional poly columns to input matrix
+for (i in 2:15) {
+  x = cbind(x, x[,1] ^ i)
+  holdout_x = cbind(holdout_x, holdout_x[,1] ^ i)
+}
+
+regularized.fit.2 = glmnet(x, y, family="gaussian", alpha = 1) # alpha = 1 uses lasso
+
+regularized_predictions = predict(regularized.fit.2, s=0.01, holdout_x, type="response")
+regularized_residuals = holdout_y - regularized_predictions
+
+(regularized_rmse = sqrt(mean(regularized_residuals^2)))
+```
+
+Remember that before, our rmse was `r round(rmse_2_holdout, digits=2)`. Now, thanks to the regularization, our rmse is down to `r round(regularized_rmse, digits=2)`.
+
+This is just a simple taste of what regularization can do for your models. Because it is a complex topic, we won't be gong into it deeply, but I encourage you all to read more about it.
