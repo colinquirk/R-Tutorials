@@ -1,0 +1,601 @@
+---
+title: "Regression"
+author: "Kate Schertz"
+date: "`r Sys.time()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Box Sync/Documents/Classes/TA/ExpDesign/Tutorials")
+```
+
+```{r, message=FALSE}
+library(tidyverse) 
+set.seed(1)  
+theme_set(theme_minimal()) 
+options(scipen=15, digits = 5)
+```
+
+There are several new packages used in this tutorial. I show throughout where they are coming in so you can see which functions are coming from which package, but here's the list:
+```{r}
+library(car)
+library(lme4)
+library(lmtest)
+library(corrplot)
+library(stargazer)
+library(ppcor)
+source("cor.mtest.R")
+```
+
+
+Here we're using semi-toy data. Not a real study, but the relationships between the visual features are from real data.
+
+In this fake study, participants saw an image for 1,2, or 3 seconds (Duration, continous IV). They had to rate on a scale of 1-7 how much they liked the image (Preference, continuous DV). Each image was previously rated for how natural the image was (Natural, continous IV 1-7). Towards the end, we'll add on other image feature variables.
+
+This is not a sample analysis pipeline. This tutorial is showing various tools in R to do regression analysis and how to calculate certain values by hand, so you understand where R's output is coming from.
+```{r}
+natprefdata <- read_csv("RegressionData1.csv")
+```
+
+First we'll visualize the data.
+```{r}
+ggplot(natprefdata) + aes(x = Natural, y = Preference, color=Duration) + geom_point()
+
+
+```
+
+We can also summarize the data to the "by image" level before visualizing, collapsing across Duration.
+```{r}
+byImage <- natprefdata %>% group_by(Image) %>% summarise(meanPref=mean(Preference),Natural=mean(Natural))
+
+p1 <- ggplot(byImage) + aes(x = Natural, y = meanPref) + 
+  geom_point() + 
+  coord_cartesian(xlim=c(1,7.5), ylim=c(2,7))
+p1
+```
+
+
+#Simple linear regression 
+
+Does Naturalness predict Preference?
+
+Calculating best fit line from scratch.
+```{r}
+meanX <- mean(byImage$Natural)
+meanX
+meanY <- mean(byImage$meanPref)
+meanY
+
+byImage2 <- byImage %>% 
+  mutate(minusMeanX = Natural-meanX,
+         minusMeanY = meanPref-meanY,
+         productminusmeans = minusMeanX*minusMeanY,
+         minusMeanXsqrd = (Natural-meanX)^2)
+head(byImage2)
+
+m <- sum(byImage2$productminusmeans)/sum(byImage2$minusMeanXsqrd)
+m
+
+# Rewrite above equation as b = y - mx
+b <- meanY - m*meanX
+b
+```
+
+Our best fit line is Preference = `r round(m,2)`\*Naturalness + `r round(b,2)`. Let's add that to our plot. This could also be written as Y = `r round(b,2)` + `r round(m,2)`\*Naturalness + epsilon.
+
+```{r}
+p1 + geom_abline(slope = m, intercept = b)
+```
+
+What does R give us for the linear regression?
+```{r}
+lm1 <- lm(meanPref ~ Natural, data = byImage)
+summary(lm1)
+```
+
+What does that output mean?
+
+Call: shows you the formula you used in the regression
+
+Residuals: Quantiles of the residuals
+
+Coefficients: shows the estimates, standard errors, t-values, and p-values for the coefficients (betas) in your model, including the y-intercept (b)
+
+Residual standard error: sqrt(MSE) with n-p degrees of freedom
+
+R-squared: SSR/SST
+
+Adjusted R^2: 1- [(1-R^2)(n-1)/(n-k-1)] where n = obs, k=num variables in model, not constants
+
+F-statistic: MSR/MSE
+
+
+
+What would happen to the slope and intercept if we used the original dataset? Their values remain the same, but our SE and p-values got smaller.
+```{r}
+lm2 <- lm(Preference ~ Natural, data = natprefdata)
+summary(lm2)
+```
+
+Reminder of how to get built-in R best fit line on the plot:
+```{r}
+p1 + geom_smooth(method="lm", formula = "y ~ x")
+```
+
+What do the residuals look like?
+```{r}
+plot(lm1$fitted.values, lm1$residuals)
+```
+
+
+#Multiple linear regression 
+Do Naturalness and Duration seen predict preference? 
+
+First we will standardize our variables. Remember, you can only directly compare the size of betas when the variables have been standardized. Here we are getting z-scores manually; later in the tutorial you'll see the function scale() will do this for you.
+```{r}
+#Standardizing variables
+
+natprefdata_zscores <- natprefdata %>% 
+  mutate(DurationZScore = (Duration - mean(Duration))/sd(Duration),
+         NaturalZScore = (Natural - mean(Natural))/sd(Natural),
+         PreferenceZScore = (Preference - mean(Preference))/sd(Preference))
+natprefdata_zscores
+
+```
+
+##Linear model
+```{r}
+multreg1 <- lm(PreferenceZScore ~ NaturalZScore + DurationZScore, data=natprefdata_zscores)
+summary(multreg1)
+
+#Confidence intervals for the beta
+confint.lm(multreg1)
+```
+
+##Plotting the residuals
+
+```{r}
+plot(multreg1$fitted.values, multreg1$residuals)
+
+```
+
+###Other residuals analysis
+We can look at the residuals visually for their spread and normality, as well as run statistical tests for heteroscedasticity.
+```{r}
+plot(multreg1)
+hist(multreg1$residuals)
+
+
+#library(lmtest)
+#Breusch-Pagan Test
+bptest(multreg1)
+bptest(multreg1, varformula = ~ fitted.values(multreg1))
+
+#library(car)
+# Score Test for Non-Constant Error Variance 
+ncvTest(multreg1)
+```
+
+I think this StackExchange answer provides a clear explanation of what these tests are doing differently: https://stats.stackexchange.com/a/261846
+
+##Partitioning the variance
+```{r}
+
+#SSE - sum((actual-predicted)^2)
+natprefdata_zscores$Predicted <- multreg1$fitted.values
+SSE <- natprefdata_zscores %>% 
+  mutate(error = PreferenceZScore - Predicted,
+         errorsq = error^2) %>% 
+  summarise(SSE = sum(errorsq)) %>% 
+  pull(SSE)
+SSE
+
+#Another way
+SSE1 <- sum((multreg1$residuals)^2)
+
+#SST - sum((actual-mean)^2)
+meanPref <- mean(natprefdata_zscores$PreferenceZScore)
+SST <- natprefdata_zscores %>% 
+  mutate(difffrommean = PreferenceZScore - meanPref,
+         diffsq = difffrommean^2) %>% 
+  summarise(SST = sum(diffsq)) %>% 
+  pull(SST)
+SST
+
+#Another way
+SST1 <- sum((natprefdata_zscores$PreferenceZScore - mean(natprefdata_zscores$PreferenceZScore))^2)
+
+#SSR - SST-SSE
+SSR = SST-SSE 
+SSR
+
+```
+
+##Partitioning variance of reduced models
+```{r}
+
+# SSR just for naturalness
+justnat <- lm(PreferenceZScore ~ NaturalZScore, data=natprefdata_zscores)
+Red_SSR_justnat <- sum((justnat$fitted.values - mean(natprefdata_zscores$PreferenceZScore))^2)
+Red_SSR_justnat
+
+
+# SSR just for duration
+justduration <- lm(PreferenceZScore ~ DurationZScore, data=natprefdata_zscores)
+Red_SSR_justdur <- sum((justduration$fitted.values - mean(natprefdata_zscores$PreferenceZScore))^2)
+Red_SSR_justdur
+
+#Unique SSRs
+Uniq_nat_SSR = SSR - Red_SSR_justdur
+Uniq_dur_SSR = SSR - Red_SSR_justnat
+
+# Shared SSR
+Shared_SSR = SSR - Uniq_dur_SSR - Uniq_nat_SSR
+Shared_SSR
+
+# Shared SSR might be low because Duration and Naturalness aren't correlated.
+cor(natprefdata_zscores$DurationZScore, natprefdata_zscores$NaturalZScore)
+```
+
+##Calculating R-squared and adjusted R-squared by hand
+```{r}
+#R^2 = SSR/SST
+Rsq = SSR/SST
+Rsq
+
+# Adj R^2 = 1- [(1-R^2)(n-1)/(n-k-1)] where n = obs, k=num variables in model, not constants
+n <- 1200
+k <- 2
+Adj_Rsq = 1 - ((1-Rsq)*(n-1)/(n-k-1))
+Adj_Rsq
+```
+
+##Cohen's f-squared by hand
+R doesn't have a built in function for Cohen's f-squared, but it's pretty easy to calculate by hand.
+```{r}
+# R^2 /(1 - R^2)
+
+cohen_fsq = Rsq/(1-Rsq)
+cohen_fsq
+```
+
+##F-statistic
+```{r}
+p <- 3
+#MSE = SSE/df_err (df error = n-p)
+MSE <- SSE/(n-p)
+MSE
+
+#Note from the 'summary' - Residual standard error was .944; That's the square root of MSE.
+sqrt(MSE)
+
+#MST = SST/df_tot (df total = n-1) n=observations
+MST <- SST/(n-1)
+MST
+
+#MSR = SSR/df_reg (df regression = p-1) p=num parameters
+MSR <- SSR/(p-1)
+MSR
+
+#F = MSR/MSE 
+F <- MSR/MSE
+F
+
+# p-value for F-statistic
+pval_F <- pf(F, p-1, n-p, lower.tail = FALSE)
+pval_F
+```
+
+What if each trial couldn't be used as a continous DV (hint: like Hit Rate for our pilot study)?
+```{r}
+image_cond <- natprefdata_zscores %>% 
+  group_by(Image, Duration) %>% 
+  summarize(meanPref = mean(PreferenceZScore), Natural=mean(NaturalZScore))
+image_cond
+
+#Then we can run our lm on this dataset.
+```
+
+
+#Changing the model
+
+##Interaction Terms
+```{r}
+#Adding an interaction term between duration and naturalness
+multreg_interaction <- lm(PreferenceZScore ~ NaturalZScore + DurationZScore + NaturalZScore*DurationZScore, data=natprefdata_zscores)
+summary(multreg_interaction)
+
+#You can also do this to get the same output, but it's less explicit about the full model:
+multreg_interaction1 <- lm(PreferenceZScore ~ NaturalZScore*DurationZScore, data=natprefdata_zscores)
+summary(multreg_interaction1)
+
+#Or if for some reason you only want the interaction term:
+multreg_interaction2 <- lm(PreferenceZScore ~ NaturalZScore:DurationZScore, data=natprefdata_zscores)
+summary(multreg_interaction2)
+```
+
+##Random Effects
+```{r}
+
+#library(lme4)
+
+#Adding random intercepts
+multreg_randomimage <- lmer(PreferenceZScore ~ NaturalZScore + DurationZScore + (1|Image), data=natprefdata_zscores)
+summary(multreg_randomimage)
+
+
+multreg_randomimage_AIC <- lmer(PreferenceZScore ~ NaturalZScore + DurationZScore + (1|Image), data=natprefdata_zscores, REML=FALSE)
+summary(multreg_randomimage_AIC)
+AIC1 <- 1077.5
+
+null_randomimage_AIC <- lmer(PreferenceZScore ~ 1 + (1|Image), data=natprefdata_zscores, REML=FALSE)
+summary(null_randomimage_AIC)
+nullAIC <- 1081.2
+#Can also use AIC to compare alternative models to each other, instead of just the null.
+(deltaAIC <- AIC1-nullAIC)
+anova(multreg_randomimage_AIC, null_randomimage_AIC)
+
+
+confint(multreg_randomimage_AIC)
+```
+
+##Categorical Variables
+```{r}
+#Changing naturalness to a categorical variable
+
+#Two categories
+natprefdata_zscores <- natprefdata_zscores %>% 
+  mutate(NatCategory = case_when(
+    NaturalZScore > 0 ~ "High",
+    NaturalZScore < 0 ~ "Low"
+  ))
+
+lm_categorical <- lm(PreferenceZScore ~ NatCategory + DurationZScore, data=natprefdata_zscores)
+summary(lm_categorical)
+
+#Three categories
+quantile(natprefdata_zscores$NaturalZScore, probs = c(.33,.66))
+hist(natprefdata_zscores$NaturalZScore)
+
+#An interesting use of 'case_when'
+natprefdata_zscores <- natprefdata_zscores %>% 
+  mutate(NatCategory3 = case_when(
+    NaturalZScore > .9 ~ "High",
+    NaturalZScore < -.7 ~ "Low",
+    TRUE ~ "Medium"
+  ))
+
+natprefdata_zscores$NatCategory3 <- factor(natprefdata_zscores$NatCategory3, levels = c("Low", "Medium", "High"))
+
+lm_categorical3 <- lm(PreferenceZScore ~ NatCategory3 + DurationZScore, data=natprefdata_zscores)
+summary(lm_categorical3)
+
+```
+
+Notice that with categorical, R output doesn't include all three categories - these betas are now interpreted as the difference in DV associated with going from that category to the base (un-included) category. This is how R deals with dummy coding, we didn't include one category.
+
+```{r}
+ggplot(data=natprefdata_zscores) + 
+  aes(x=Duration, y = Preference, color=NatCategory3) + 
+  geom_jitter(width = .2) + 
+  geom_smooth(method="lm", formula = "y ~ x")
+```
+
+##Both DVs as categorical
+```{r}
+natpref_categorical <- natprefdata_zscores %>% 
+  mutate(Duration_cat = as.factor(Duration)) %>% 
+  dplyr::select(Subject, Image, Preference, NatCategory3, Duration_cat)
+
+lm_categorical_both <- lm(Preference ~ NatCategory3 + Duration_cat, data=natpref_categorical)
+summary(lm_categorical_both)
+
+confint(lm_categorical_both)
+```
+
+
+#More than two features
+
+```{r}
+#Merging other image features 
+imagefeatures <- read_csv("RegressionImageData.csv")
+
+#Here we don't want preference or naturalness from the new data because they are already in the current data set, so we are dropping them. Note, the car package also has a select function, so here I'm specifying that I want dplyr's version of that
+imagefeatures <- imagefeatures %>% dplyr::select(-c(Preference, Natural))
+
+#Check out the different join options in help. Joins will use a common variable (in this case our Image column) to merge data. Left join is used here because we want to keep all columns from the first data set, and match the data to them from the second data set.
+#Can also do: natprefdata_2 <- merge(natprefdata, imagefeatures)
+natprefdata_2 <- natprefdata %>% left_join(imagefeatures)
+
+
+#Now we can run the new lm
+morevariables_lm <- lm(Preference ~ Natural + Order + Habitable + Duration, data = natprefdata_2)
+summary(morevariables_lm)
+```
+
+##Multicollinearity
+Can check Variance Inflation Factor for this model
+VIFj = 1/(1-R^2j)
+
+Rules of Thumb:
+
+A VIF of 1 means there is no correlation; no sign of multicollinearity
+
+A VIF of 4 means 75% of the variance is explained by these predictors – potential sign of multicollinearity and needs more investigation
+
+A VIF of 10 means 90% of the variance is explained – serious multicollinearity!
+
+```{r}
+#library(car)
+
+vif(morevariables_lm)
+```
+
+##Model Selection
+
+There are other packages and methods for model selection in R; this is the easiest one to use in my opinion. 
+```{r}
+#library(MASS) #Already loaded as a required package by something else we are using
+# Fit the full model 
+full.model <- lm(Preference ~., data = natprefdata_2[,4:8])
+# Stepwise regression model
+step.model <- stepAIC(full.model, direction = "both", 
+                      trace = FALSE)
+summary(step.model)
+
+#Forward selection
+step.forward <- stepAIC(full.model, direction = "forward", trace = FALSE)
+summary(step.forward)
+
+#Backward selection
+step.backward <- stepAIC(full.model, direction = "backward", trace = FALSE)
+summary(step.backward)
+```
+
+
+##Logistic Regression
+What if our DV was binary? We would need to run logistic regression. More on how to interpret this and other types of regression next quarter!
+```{r}
+natprefdata_2 <- natprefdata_2 %>% 
+  mutate(Pref_binary = case_when(
+    Preference > median(Preference) ~ 1,
+    Preference < median(Preference) ~ 0
+  ))
+
+natprefdata_2 %>% count(Pref_binary)
+
+log_regression <- glm(Pref_binary ~ Natural + Order + Habitable + Duration, data = natprefdata_2, family = "binomial")
+summary(log_regression)
+
+```
+
+#Transforming data
+
+I had us calculate Z-scores manually above, but R has a built in function for that. Z-scoring is a linear transformation - it doesn't change the shape of your distribution. Sometimes you may also want to do non-linear transformations. These can help make skewed data more normal.
+
+```{r}
+x <- rexp(100, rate = .1)
+hist(x)
+
+summary(x)
+
+```
+
+
+```{r}
+xZ <- scale(x)
+summary(xZ)
+
+hist(xZ)
+```
+
+```{r}
+#Note - if you have 0s, log1p(x) will accurately calculate log(x + 1) for all numbers
+
+logx <- log(x)
+hist(x)
+
+```
+
+```{r}
+#You can also Z score after log transformation to get all variables in a similar scale. Sometimes this makes interpretation more difficult, so I usually don't do this if the variable is my DV.
+logxZ <- scale(x)
+hist(xZ)
+```
+
+
+Interpreting betas after different transformations:
+
+**If DV log-transformed:**
+
+log(DV) = beta*IV
+
+Do: (exp(beta) - 1)*100
+
+This equals the percent change in DV for one unit change in IV
+
+Example: beta=.198, exp(.198-1)*100 = 22% change in DV
+
+**If IV log-transformed**
+
+DV = beta*log(IV)
+
+Do: beta/100
+
+This equals the unit change in DV for a 1% change in IV
+
+OR
+
+Do: For x percent increase, multiply the coefficient by log(1.x). 
+
+Example: beta=.198, For every 10% increase in the independent variable, dependent variable increases by about 0.198 * log(1.10) = 0.02 units
+
+More info here: https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/
+
+**If z-scored DV and IV**
+
+scaled(DV) = beta*scaled(IV)
+
+1 SD change in IV for beta-SD change in DV
+
+
+# Correlations
+```{r}
+cor(natprefdata_2$Natural, natprefdata_2$Habitable)
+cor(natprefdata_2$Natural, natprefdata_2$Habitable, method = "spearman")
+cor.test(natprefdata_2$Natural, natprefdata_2$Habitable)
+cor.test(natprefdata_2$Natural, natprefdata_2$Habitable, method = "spearman")
+```
+
+##Partial and Semi-partial correlations
+```{r}
+#library(ppcor)
+
+#Regulr correlation
+cor.test(natprefdata_2$Natural, natprefdata_2$Preference)
+
+#Partial correlation: between Naturalness and Preference controlling for Order
+pcor.test(x=natprefdata_2$Natural, y=natprefdata_2$Preference, z=natprefdata_2$Order)
+
+# Partial correlation between two variables controlling for all other variables in the data frame
+pcor(natprefdata_2[,4:8])
+
+# Semi-partial correlation: Between naturalness and preference, while just controlling order for naturalness. Note the order. The "control" from z is applied to the y-variable
+spcor.test(x=natprefdata_2$Preference, y=natprefdata_2$Natural, z=natprefdata_2$Order)
+#This would get the semi-partial correlation between naturalness and preference while holding order constant for preference
+spcor.test(x=natprefdata_2$Natural, y=natprefdata_2$Preference, z=natprefdata_2$Order)
+```
+
+
+# Other R tools
+
+Corrplot package - graphical representations of correlation matrices
+https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html
+
+
+```{r}
+library(corrplot)
+source("cor.mtest.R")
+
+cormat <- cor(natprefdata_2[,4:8])
+cormat
+A <- cor.mtest(natprefdata_2[,4:8], .95)
+corrplot(cormat, method="number", type = "lower", p.mat = A[[1]], sig.level = .001, tl.col = "black")
+```
+
+```{r}
+pairs(natprefdata_2[,4:8])
+```
+
+Stargazer package - outputs tables of models for papers
+https://cran.r-project.org/web/packages/stargazer/vignettes/stargazer.pdf
+
+```{r}
+library(stargazer)
+
+stargazer(multreg1, multreg_interaction1, type="text")
+stargazer(multreg1, multreg_interaction1, type="text", intercept.bottom = FALSE, intercept.top = TRUE, ci = TRUE, single.row = T)
+```
+
+Lots of other R packages available for creating nicer tables as well: knitr (kable()), apaTables, formattable, for example.
