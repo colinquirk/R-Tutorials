@@ -84,8 +84,8 @@ Everything seems to look normal here, so now we should check to see if we get si
 ```{r}
 (train_rmse = sqrt(mean(residuals(fit)^2)))
 
-predicitons = predict(fit, holdout_grouped)
-valid_residuals = holdout_grouped$Sepal.Length - predicitons
+predictions = predict(fit, holdout_grouped)
+valid_residuals = holdout_grouped$Sepal.Length - predictions
 
 (valid_rmse = sqrt(mean(valid_residuals^2)))
 ```
@@ -95,7 +95,7 @@ Performance is very similar, suggesting that we are just as predictive on our ho
 In order to generate a correlation between the predicted values and the actual values, we will use the `cor` function.
 
 ```{r}
-cor(predicitons, holdout_grouped$Sepal.Length)
+cor(predictions, holdout_grouped$Sepal.Length)
 ```
 
 Because this R value is close to 1, we conclude there is a good fit for the holdout data.
@@ -106,6 +106,7 @@ Here we will show how to perform cross validation, which will give us a distribu
 
 ```{r}
 iris_folded = iris %>% 
+  arrange(Species) %>% # necessary to get the right number of folds within each group
   mutate(fold = rep(1:5, 30)) %>%  # 5 folds with n = 30
   group_by(Species) %>%  # Keep the folds balanced across species
   mutate(fold = sample(fold)) # randomize the fold column

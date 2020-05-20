@@ -372,6 +372,7 @@ summary {
 <pre class="r"><code>library(tidyverse)
 
 #install.packages(glmnet)
+# Comment this line out if you are playing with this code and don't want to run the last section
 library(glmnet)
 
 set.seed(1)
@@ -474,14 +475,14 @@ summary(fit)</code></pre>
 <p>Everything seems to look normal here, so now we should check to see if we get similar performance on our validation set. To do this, we will use root mean squared error (rmse) as it is a quick way to compare performance. To get rmse for our validation set, we need to use our model to make predictions on it, using the <code>predict</code> function.</p>
 <pre class="r"><code>(train_rmse = sqrt(mean(residuals(fit)^2)))</code></pre>
 <pre><code>## [1] 0.3010781</code></pre>
-<pre class="r"><code>predicitons = predict(fit, holdout_grouped)
-valid_residuals = holdout_grouped$Sepal.Length - predicitons
+<pre class="r"><code>predictions = predict(fit, holdout_grouped)
+valid_residuals = holdout_grouped$Sepal.Length - predictions
 
 (valid_rmse = sqrt(mean(valid_residuals^2)))</code></pre>
 <pre><code>## [1] 0.3074961</code></pre>
 <p>Performance is very similar, suggesting that we are just as predictive on our holdout data as we are on our validation data.</p>
 <p>In order to generate a correlation between the predicted values and the actual values, we will use the <code>cor</code> function.</p>
-<pre class="r"><code>cor(predicitons, holdout_grouped$Sepal.Length)</code></pre>
+<pre class="r"><code>cor(predictions, holdout_grouped$Sepal.Length)</code></pre>
 <pre><code>## [1] 0.9511862</code></pre>
 <p>Because this R value is close to 1, we conclude there is a good fit for the holdout data.</p>
 </div>
@@ -489,6 +490,7 @@ valid_residuals = holdout_grouped$Sepal.Length - predicitons
 <h1>K-fold Cross Validation</h1>
 <p>Here we will show how to perform cross validation, which will give us a distribution of metrics instead of a single value. To do this, we will setup a column defining folds and then randomize it within species.</p>
 <pre class="r"><code>iris_folded = iris %&gt;% 
+  arrange(Species) %&gt;% # necessary to get the right number of folds within each group
   mutate(fold = rep(1:5, 30)) %&gt;%  # 5 folds with n = 30
   group_by(Species) %&gt;%  # Keep the folds balanced across species
   mutate(fold = sample(fold)) # randomize the fold column
