@@ -527,7 +527,9 @@ count(iris_folded, Species, fold)</code></pre>
 ## 5     5          5           3.6          1.4         0.2 setosa      3
 ## 6     6          5.4         3.9          1.7         0.4 setosa      5</code></pre>
 <p>Now, for each fold we will create a model and print out the R value for the correlation between predicted and actuals.</p>
-<pre class="r"><code>for (fold_number in 1:5) {
+<pre class="r"><code>cors = numeric()
+
+for (fold_number in 1:5) {
   train = iris_folded %&gt;% filter(fold != fold_number)
   valid = iris_folded %&gt;% filter(fold == fold_number)
   
@@ -536,13 +538,11 @@ count(iris_folded, Species, fold)</code></pre>
   folded_predictions = predict(folded_model, valid)
   
   r = cor(folded_predictions, valid$Sepal.Length)
-  print(r)
-}</code></pre>
-<pre><code>## [1] 0.9644323
-## [1] 0.9366562
-## [1] 0.9341592
-## [1] 0.8964149
-## [1] 0.8868998</code></pre>
+  cors = append(cors, r)
+}
+
+cors</code></pre>
+<pre><code>## [1] 0.9644323 0.9366562 0.9341592 0.8964149 0.8868998</code></pre>
 <p>While there is some random noise, we can see that in general our mean R value is around 0.92.</p>
 </div>
 <div id="underfitting-and-overfitting" class="section level1">

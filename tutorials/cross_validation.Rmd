@@ -119,6 +119,8 @@ head(iris_folded)
 Now, for each fold we will create a model and print out the R value for the correlation between predicted and actuals.
 
 ```{r}
+cors = numeric()
+
 for (fold_number in 1:5) {
   train = iris_folded %>% filter(fold != fold_number)
   valid = iris_folded %>% filter(fold == fold_number)
@@ -128,8 +130,10 @@ for (fold_number in 1:5) {
   folded_predictions = predict(folded_model, valid)
   
   r = cor(folded_predictions, valid$Sepal.Length)
-  print(r)
+  cors = append(cors, r)
 }
+
+cors
 ```
 
 While there is some random noise, we can see that in general our mean R value is around 0.92.
