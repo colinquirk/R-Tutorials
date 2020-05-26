@@ -1,0 +1,299 @@
+---
+title: "ANOVAs"
+author: "Colin Quirk"
+date: "5/22/2020"
+output: html_document
+---
+
+```{r}
+#install.packages("car")
+library(car)  # provides useful functions for within subjects anova
+
+library(tidyverse)
+
+theme_set(theme_minimal())
+
+set.seed(1)
+```
+
+Let's create some data for us to use. Let's imagine we are performing an attention task where we have a cue that tells a participant where a target will appear. We are interested in examining cue type (exogenous [appears at target] and endogenous [appears at fixation]) and cue validity (neutral, valid, and invalid). Our dependent variable will be reaction time and we will have 50 subjects complete a within subjects design. Don't worry too much about how I create the fake data, I am just generating it in a way that will give it certain qualities that will be helpful for the tutorial. The data has already been summarised so that there is an average reaction time for each subject.
+
+```{r}
+subject = factor(rep(c(1:50), each=6))
+cue_type = factor(rep(c("exogenous", "endogenous"), each=3, times = 50))
+cue_validity = factor(rep(c("valid", "invalid", "neutral"), times = 100))
+subject_intercept = rep(round(rnorm(50, .9, .15)), each=6)
+
+data = data.frame(subject, cue_type, cue_validity, subject_intercept) %>% 
+  rowwise() %>% 
+  mutate(mean_rt = subject_intercept + rnorm(1, 0, .15) +
+           (as.numeric(cue_validity=="valid") * -.1) + 
+           (as.numeric(cue_validity=="invalid") * .3) +
+           (as.numeric(cue_validity=="invalid" & cue_type=="exogenous") * .15) +
+           (as.numeric(cue_validity=="valid" & cue_type=="exogenous") * -.1)) %>% 
+  select(-subject_intercept) %>% 
+  ungroup()
+```
+
+Here is a visualization of what our data looks like
+
+```{r message=FALSE}
+ggplot(data, aes(x = cue_validity, y = mean_rt, fill = cue_type)) +
+  stat_summary(geom='bar', position=position_dodge(width=0.5), width=0.5) +
+  stat_summary(geom='errorbar', position=position_dodge(width=0.5), width=0.1)
+```
+
+## Filling Missing Data with a Mean
+
+```{r}
+# randomly removing data
+missing_data = data %>% 
+  rowwise() %>% 
+  mutate(mean_rt = ifelse(rbinom(1, 1, 0.2), NA, mean_rt)) %>% 
+  ungroup()
+
+head(missing_data)
+
+replace_grand_mean = missing_data %>% 
+  mutate(mean_rt = replace(mean_rt, is.na(mean_rt), mean(mean_rt, na.rm=T)))
+
+head(replace_grand_mean)
+
+replace_mean_by_group = missing_data %>% 
+  group_by(cue_type, cue_validity) %>% 
+  mutate(mean_rt = replace(mean_rt, is.na(mean_rt), mean(mean_rt, na.rm=T)))
+
+head(replace_mean_by_group)
+```
+
+
+## One Way ANOVA
+
+```{r}
+fit = aov(mean_rt ~ cue_validity, data=data)
+summary(fit)
+```
+
+## Two Way ANOVA - no interaction
+
+```{r}
+fit = aov(mean_rt ~ cue_validity + cue_type, data=data)
+summary(fit)
+```
+
+## Two Way ANOVA - with interaction
+
+```{r}
+fit = aov(mean_rt ~ cue_validity * cue_type, data=data)
+summary(fit)
+```
+
+For more complicated models, just add more predictors with the formula syntax
+
+```{r}
+summary(aov(mpg ~ cyl * am * carb, data=mtcars))
+```
+
+
+## Two Way ANOVA - with interaction - from scratch
+
+Model definition: SS_total = SS_within + SS_validity + SS_type + SS_validity*type
+
+```{r}
+(overall_mean = mean(data$mean_rt))
+```
+
+Calculate SS_validity
+
+```{r}
+# works because each cell has the same number
+n_per_validity = sum(data$cue_validity == "valid")
+
+mean_valid = mean(data$mean_rt[data$cue_validity == "valid"])
+mean_invalid = mean(data$mean_rt[data$cue_validity == "invalid"])
+mean_neutral = mean(data$mean_rt[data$cue_validity == "neutral"])
+
+ss_valid = (mean_valid - overall_mean)^2 * n_per_validity
+ss_invalid = (mean_invalid - overall_mean)^2 * n_per_validity
+ss_neutral = (mean_neutral - overall_mean)^2 * n_per_validity
+
+(SS_validity = (ss_valid + ss_invalid + ss_neutral))
+```
+
+Calculate SS_type
+
+```{r}
+n_per_validity = sum(data$cue_type == "exogenous")
+
+mean_exogenous = mean(data$mean_rt[data$cue_type == "exogenous"])
+mean_endogenous = mean(data$mean_rt[data$cue_type == "endogenous"])
+
+ss_exogenous = (mean_exogenous - overall_mean)^2 * n_per_validity
+ss_endogenous = (mean_endogenous - overall_mean)^2 * n_per_validity
+
+(SS_type = (ss_exogenous + ss_endogenous))
+```
+
+Calculate SS_within
+
+```{r}
+group_means = data %>% 
+  group_by(cue_validity, cue_type) %>% 
+  summarise(group_mean = mean(mean_rt))
+
+SS_within = data %>%
+  left_join(group_means) %>% 
+  mutate(square_diff = (mean_rt - group_mean)^2) %>% 
+  summarise(ss = sum(square_diff)) %>%
+  pull()
+
+SS_within
+```
+
+Calculate SS_total
+
+```{r}
+(SS_total = sum((data$mean_rt - overall_mean)^2))
+```
+
+Calculate SS_interaction
+
+```{r}
+(SS_interaction = SS_total - SS_within - SS_type - SS_validity)
+```
+
+Calculate dfs
+
+```{r}
+(df_validity = length(unique(data$cue_validity)) - 1)
+(df_type = length(unique(data$cue_type)) - 1)
+(df_interaction = df_validity * df_type)
+(df_within = (50 - 1) * 6)
+(df_total = nrow(data) - 1)
+```
+
+Calculate MSEs
+
+```{r}
+(MS_validity = SS_validity / df_validity)
+(MS_type = SS_type / df_type)
+(MS_interaction = SS_interaction / df_interaction)
+(MS_within = SS_within / df_within)
+```
+
+Calculate Fs
+
+```{r}
+(F_validity = MS_validity / MS_within)
+(F_type = MS_type / MS_within)
+(F_interaction = MS_interaction / MS_within)
+```
+
+Calculate p-values
+
+```{r}
+(p_validity = pf(F_validity, df_validity, df_within, lower.tail = FALSE))
+(p_type = pf(F_type, df_type, df_within, lower.tail = FALSE))
+(p_interaction = pf(F_interaction, df_interaction, df_within, lower.tail = FALSE))
+```
+
+Let's check our output
+
+```{r}
+fit = aov(mean_rt ~ cue_validity * cue_type, data=data)
+summary(fit)
+```
+
+Please make a nice table in your markdown for your homework, I don't want to go through your by hand calculations. Use inline R code to show you calculated them by hand.
+
+|  | sum sq | df | mean sq | F | p |
+| --- | --- | --- | --- | --- | --- |
+| cue_validity | `r SS_validity` | `r df_validity` | `r MS_validity` | `r F_validity` | `r p_validity` |
+| cue_type | `r SS_type` | `r df_type` | `r MS_type` | `r F_type` | `r p_type` |
+| cue_validity:cue_type | `r SS_interaction` | `r df_interaction` | `r MS_interaction` | `r F_interaction` | `r p_interaction` |
+| Residuals (Within) | `r SS_within` | `r df_within` | `r MS_within` |  |  |
+| Total | `r SS_total` | `r df_total` |  |  |  |
+
+## Post Hoc TukeyHSD
+
+An anova doesn't tell you which groups are different, just that a difference exists. Often you are interested in *where* a difference actually occurs. You could follow up with t-tests, but you probably want to correct the p-values as there will be a lot of tests. `TukeyHSD` is one of many ways to quickly perform a "post-hoc test." `TukeyHSD` handles the p-value correction for you and gives you the confidence interval. **Warning**: you should only look at the values where your ANOVA was significant. Here it is the cue validity main effect and interaction.
+
+```{r}
+TukeyHSD(fit)
+```
+
+## Adding significance to a plot
+
+For more complicated plots, there is the ggpubr package.
+
+```{r}
+library(ggpubr)
+
+comparisons = list(c("invalid","neutral"), c("neutral","valid"), c("valid","invalid"))
+
+ggplot(data, aes(x = cue_validity, y = mean_rt, fill=cue_type)) +
+  stat_summary(geom='bar', position=position_dodge(width=0.5), width=0.5) +
+  stat_summary(geom='errorbar', position=position_dodge(width=0.5), width = 0.2) +
+  stat_compare_means(method = "t.test", label =  "p.signif", label.y = 1.6) +
+  stat_compare_means(method = "t.test", label =  "p.signif", comparisons=comparisons) +
+  theme_minimal()
+```
+
+## Partial eta squared
+
+Because we have our sum of squares already, this calculation is easy!
+
+```{r}
+(eta_cue_validity = SS_validity / (SS_validity + SS_within))
+```
+
+Or you can use a package, e.g. DescTools
+
+```{r}
+DescTools::EtaSq(fit)
+```
+
+
+## Bartlett's Test
+
+```{r}
+bartlett.test(data$mean_rt, data$cue_validity)
+```
+
+## Repeated Measures Anova
+
+```{r}
+# Lone random effect of subject
+fit = aov(mean_rt ~ cue_validity * cue_type + Error(subject), data=data)
+summary(fit)
+
+# In real data, you should probably allow random slopes
+# fit = aov(mean_rt ~ cue_validity * cue_type + Error(subject/(cue_validity*cue_type)), data=data)
+```
+
+or, there is Anova from the car package.
+
+```{r}
+wide_data_matrix = data %>% 
+  pivot_wider(values_from = mean_rt, names_from = c(cue_type, cue_validity), names_sep="") %>% 
+  select(-subject) %>% 
+  as.matrix()
+
+# Define within subject effects
+idata = data %>% 
+  select(cue_type, cue_validity) %>% 
+  distinct() %>% 
+  as.data.frame()  # tibbles will break Anova
+
+head(wide_data_matrix)
+
+# Be careful of capitalization of Anova, base R has an anova function
+# Always use type III if interested in interactions
+lm_fit = lm(wide_data_matrix ~ 1)
+car_fit = Anova(lm_fit, idata=idata, idesign= ~cue_type * cue_validity)
+
+car_fit
+summary(car_fit)
+```
+
+

@@ -1,0 +1,152 @@
+---
+title: "Useful R packages"
+author: "Colin Quirk"
+date: "5/26/2020"
+output: html_document
+---
+
+```{r message=F}
+library(tidyverse)
+
+theme_set(theme_minimal())
+
+set.seed(1)
+
+knitr::opts_chunk$set(message=F)
+```
+
+```{r}
+library(janitor)
+
+colnames(iris)
+
+colnames(janitor::clean_names(iris))
+```
+
+```{r}
+library(stringr)
+
+strings <- c(" 219 733 8965",
+             "329-293-8753 ",
+             "banana",
+             "595 794 7569",
+             "387 287 6718", "233.398.9187  ",
+             "482 952 3315",
+             "239 923 8115 and 842 566 4692",
+             "Work: 579-499-7527",
+             "$1000",
+             "Home: 543.355.3679")
+
+phone_pattern <- "([2-9][0-9]{2})[- .]([0-9]{3})[- .]([0-9]{4})"
+
+str_extract(strings, phone_pattern)
+```
+
+```{r}
+library(lubridate)
+
+my_date = ymd(20200529)
+
+my_date
+
+month(my_date)
+
+leap_year(my_date)
+```
+
+```{r}
+library(forcats)
+
+fav_colors = sample(colors(), 25)
+counts = round(runif(25, 5, 100))
+
+cols = data.frame(fav_colors, counts)
+
+ggplot(cols, aes(x = fav_colors, y = counts)) +
+  geom_col() +
+  coord_flip()
+
+cols = cols %>% 
+  mutate(fav_colors = fct_reorder(fav_colors, counts, max))
+
+ggplot(cols, aes(x = fav_colors, y = counts)) +
+  geom_col() +
+  coord_flip()
+```
+
+```{r}
+library(purrr)
+
+iris_nested = iris %>% 
+  group_by(Species) %>% 
+  nest()
+
+iris_nested
+
+models = iris_nested %>% 
+  mutate(model = lapply(data, function(df) {summary(lm(Petal.Length ~ Petal.Width, data = df))}),
+         r_2 = model$r.squared)
+
+models
+```
+
+```{r}
+library(modelr)
+
+fit = lm(Petal.Length ~ Petal.Width + Sepal.Length + Species, data=iris)
+
+iris = iris %>% 
+  add_predictions(fit)
+
+head(iris)
+```
+
+```{r}
+library(feather)
+
+file = "/Users/Colin/Documents/Experiments/BehavioralAndEEG/DeepEyesCD/data/dfs/all_samples.feather"
+
+file.size(file) / 1e9  # gb
+
+start = proc.time()
+temp = read_feather(file)
+end = proc.time()
+
+end - start
+```
+
+```{r}
+library(data.table)
+
+iris_dt = data.table(iris)
+
+iris_dt[Species == "setosa", .(Petal.Length = mean(Petal.Length))]
+```
+
+```{r}
+library(patchwork)
+
+p1 = ggplot(iris, aes(x = Petal.Length, y = Petal.Width, color = Species)) +
+  geom_point()
+
+p2 = ggplot(iris, aes(x = Species, y = Petal.Length, fill=Species)) +
+  stat_summary(geom="bar") +
+  stat_summary(geom="errorbar", width = 0.2) +
+  guides(fill=FALSE)
+
+p3 = ggplot(iris, aes(x = Species, y = Petal.Width, fill=Species)) +
+  stat_summary(geom="bar") +
+  stat_summary(geom="errorbar", width = 0.2) +
+  guides(fill=FALSE)
+
+p1 / (p2 + p3)
+```
+
+
+Other useful packages:
+
+shiny - generating simple web apps (https://colinquirk.shinyapps.io/shinyeyes/)
+
+bookdown - creating ebooks with rmarkdown files (https://bookdown.org/cquirk/LetsExploreStatistics/)
+
+blogdown - creating a personal website with r markdown (http://colinquirk.com/)
