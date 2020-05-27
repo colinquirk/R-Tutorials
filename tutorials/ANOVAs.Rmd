@@ -88,12 +88,17 @@ fit = aov(mean_rt ~ cue_validity * cue_type, data=data)
 summary(fit)
 ```
 
+Note the similarity between ANOVA and a linear model.
+
+```{r}
+anova(lm(mean_rt ~ cue_validity * cue_type, data=data))
+```
+
 For more complicated models, just add more predictors with the formula syntax
 
 ```{r}
 summary(aov(mpg ~ cyl * am * carb, data=mtcars))
 ```
-
 
 ## Two Way ANOVA - with interaction - from scratch
 
@@ -271,7 +276,7 @@ summary(fit)
 # fit = aov(mean_rt ~ cue_validity * cue_type + Error(subject/(cue_validity*cue_type)), data=data)
 ```
 
-or, there is Anova from the car package.
+or, there is Anova() from the car package.
 
 ```{r}
 wide_data_matrix = data %>% 
