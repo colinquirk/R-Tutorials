@@ -83,7 +83,7 @@ Let's generate a binary variable with missing data.
 ```{r}
 missing_data = data.frame(accuracy = sample(c(rbinom(100, 1, 0.8), rep(NA, 25))))
 
-missing_data
+head(missing_data, 25)
 ```
 
 Now we can use replace to fill in the missing data. Note that the condition doesn't have to be checking for NA, we could instead use a check on another column in our data.
