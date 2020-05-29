@@ -66,6 +66,36 @@ replace_mean_by_group = missing_data %>%
 head(replace_mean_by_group)
 ```
 
+## Binomial Imputation
+
+If you want to fill in a binary variable like accuracy at the individual trial level, imputing with the mean is unnatural as the rest of your data will be zeros and ones. The `rbinom()` function will give you randomly generated 0's and 1's with a given probability of 1's.
+
+```{r}
+rbinom(15, 1, 0.5)
+```
+
+```{r}
+rbinom(15, 1, 0.9)
+```
+
+Let's generate a binary variable with missing data.
+
+```{r}
+missing_data = data.frame(accuracy = sample(c(rbinom(100, 1, 0.8), rep(NA, 25))))
+
+missing_data
+```
+
+Now we can use replace to fill in the missing data. Note that the condition doesn't have to be checking for NA, we could instead use a check on another column in our data.
+
+```{r}
+(mean_accuracy = mean(missing_data$accuracy, na.rm = T))
+
+missing_data %>% 
+  rowwise() %>%  # Necessary to get rbinom to repeat for each new NA
+  mutate(accuracy = replace(accuracy, is.na(accuracy), rbinom(1, 1, mean_accuracy)))
+```
+
 
 ## One Way ANOVA
 
