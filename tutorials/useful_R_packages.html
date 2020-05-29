@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
@@ -331,6 +330,7 @@ summary {
   border: none;
   display: inline-block;
   border-radius: 4px;
+  background-color: transparent;
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li {
@@ -379,11 +379,9 @@ knitr::opts_chunk$set(message=F)</code></pre>
 <pre class="r"><code>library(janitor)
 
 colnames(iris)</code></pre>
-<pre><code>## [1] &quot;Sepal.Length&quot; &quot;Sepal.Width&quot;  &quot;Petal.Length&quot; &quot;Petal.Width&quot; 
-## [5] &quot;Species&quot;</code></pre>
+<pre><code>## [1] &quot;Sepal.Length&quot; &quot;Sepal.Width&quot;  &quot;Petal.Length&quot; &quot;Petal.Width&quot;  &quot;Species&quot;</code></pre>
 <pre class="r"><code>colnames(janitor::clean_names(iris))</code></pre>
-<pre><code>## [1] &quot;sepal_length&quot; &quot;sepal_width&quot;  &quot;petal_length&quot; &quot;petal_width&quot; 
-## [5] &quot;species&quot;</code></pre>
+<pre><code>## [1] &quot;sepal_length&quot; &quot;sepal_width&quot;  &quot;petal_length&quot; &quot;petal_width&quot;  &quot;species&quot;</code></pre>
 <pre class="r"><code>library(stringr)
 
 strings &lt;- c(&quot; 219 733 8965&quot;,
@@ -400,9 +398,9 @@ strings &lt;- c(&quot; 219 733 8965&quot;,
 phone_pattern &lt;- &quot;([2-9][0-9]{2})[- .]([0-9]{3})[- .]([0-9]{4})&quot;
 
 str_extract(strings, phone_pattern)</code></pre>
-<pre><code>##  [1] &quot;219 733 8965&quot; &quot;329-293-8753&quot; NA             &quot;595 794 7569&quot;
-##  [5] &quot;387 287 6718&quot; &quot;233.398.9187&quot; &quot;482 952 3315&quot; &quot;239 923 8115&quot;
-##  [9] &quot;579-499-7527&quot; NA             &quot;543.355.3679&quot;</code></pre>
+<pre><code>##  [1] &quot;219 733 8965&quot; &quot;329-293-8753&quot; NA             &quot;595 794 7569&quot; &quot;387 287 6718&quot;
+##  [6] &quot;233.398.9187&quot; &quot;482 952 3315&quot; &quot;239 923 8115&quot; &quot;579-499-7527&quot; NA            
+## [11] &quot;543.355.3679&quot;</code></pre>
 <pre class="r"><code>library(lubridate)
 
 my_date = ymd(20200529)
@@ -484,7 +482,7 @@ end = proc.time()
 
 end - start</code></pre>
 <pre><code>##    user  system elapsed 
-##   2.722   2.567   5.298</code></pre>
+##   2.888   3.715  13.816</code></pre>
 <pre class="r"><code>library(data.table)
 
 iris_dt = data.table(iris)
@@ -513,6 +511,7 @@ p1 / (p2 + p3)</code></pre>
 <p>shiny - generating simple web apps (<a href="https://colinquirk.shinyapps.io/shinyeyes/" class="uri">https://colinquirk.shinyapps.io/shinyeyes/</a>)</p>
 <p>bookdown - creating ebooks with rmarkdown files (<a href="https://bookdown.org/cquirk/LetsExploreStatistics/" class="uri">https://bookdown.org/cquirk/LetsExploreStatistics/</a>)</p>
 <p>blogdown - creating a personal website with r markdown (<a href="http://colinquirk.com/" class="uri">http://colinquirk.com/</a>)</p>
+<p>xaringan - creating presentations from rmarkdown</p>
 
 
 

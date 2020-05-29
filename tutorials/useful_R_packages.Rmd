@@ -150,3 +150,6 @@ shiny - generating simple web apps (https://colinquirk.shinyapps.io/shinyeyes/)
 bookdown - creating ebooks with rmarkdown files (https://bookdown.org/cquirk/LetsExploreStatistics/)
 
 blogdown - creating a personal website with r markdown (http://colinquirk.com/)
+
+xaringan - creating presentations from rmarkdown
+
